@@ -302,20 +302,15 @@ a Pi" surfaces a real distinction that had stayed implicit until now:
 
 Both profiles share Phase 1's install script and radio-readiness work; they differ only in
 whether a desktop environment and the operator-facing apps get installed. Which specific
-lightweight desktop environment to use is deliberately **left open, not decided here** — it's
-a real design question, not just an engineering one: a conventional choice (Xfce, LXQt) is
-lower-effort and more familiar to a family member who isn't technical, while a minimal
-Wayland compositor (Sway, Labwc) could be skinned to genuinely match the "NASA command
-center" brand direction from [[citadel_ecosystem_architecture]] at real extra engineering
-cost. Worth Frank's own call when this phase actually starts, not something to decide
-unilaterally here.
+lightweight desktop environment to use was left open at this point in the planning — **now
+decided, see the Fifth planning session below.**
 
-**Also real and worth naming honestly, not resolved here**: full-disk encryption is
-straightforward on x86 (desktop/laptop) but the Raspberry Pi has no TPM, so Pi encryption
-means typing a passphrase at every boot — directly in tension with "unattended appliance
-that comes back up on its own after a power blip with nobody there." This is a genuine
-security-vs-availability tradeoff tied to Frank's own real deployment context (family homes,
-not a data center), not a default either of us should pick silently. Left open for Phase 0
+**Also real and worth naming honestly**: full-disk encryption is straightforward on x86
+(desktop/laptop) but the Raspberry Pi has no TPM, so Pi encryption means typing a passphrase
+at every boot — directly in tension with "unattended appliance that comes back up on its own
+after a power blip with nobody there." This is a genuine security-vs-availability tradeoff
+tied to Frank's own real deployment context (family homes, not a data center) — **now
+decided, see the Fifth planning session below.** It was left open for Phase 0
 of the revised build order below.
 
 ## Third planning session (2026-09-16, same day): Full ships completely before Lite starts
@@ -357,11 +352,11 @@ reasoning, not just a preference:
 
 ## Revised build order (supersedes the phase list in the second planning session)
 
-1. **Phase 0 — decide**: base (Debian, decided), image tool (`debos` vs. a
-   `pi-gen`+`packer`/`live-build` pair, still to research hands-on), desktop environment for
-   Full's operator-station profile (open, Frank's call), and the Pi encryption stance for
-   Lite (open, real tradeoff named above — doesn't block Full at all, x86 FDE is
-   straightforward).
+1. **Phase 0 — decide**: base (Debian, decided), desktop environment for Full's Workstation
+   profile (**decided: Xfce**, see the Fifth planning session below), Lite's encryption
+   default (**decided: unencrypted by default, opt-in at first boot**, see the Fifth planning
+   session below), and image tool (`debos` vs. a `pi-gen`+`packer`/`live-build` pair — the one
+   remaining real Phase 0 item, still to research hands-on).
 2. **Phase 1 — Undercroft Full, the appliance script.** Built and proven on real x86
    desktop/laptop hardware only — no Pi testing yet, deliberately. Docker install + hand-off
    to Citadel's own `install.sh`, systemd/mDNS appliance behavior, the laptop lid-close fix,
@@ -460,6 +455,45 @@ use). Treated as a preset offered in the first-boot wizard's module-selection st
 with how Citadel's own module system already keeps "which hardware profile" and "which
 modules are enabled" as two independent choices rather than flattening them into one list.
 
+## Fifth planning session (2026-09-16, same day): closing out the last two open decisions
+
+Frank asked to work through the two remaining genuinely-his-call items directly, rather than
+leave them open indefinitely. Both decided:
+
+**Full's Workstation desktop environment: Xfce.** A real technical constraint tipped this,
+not just familiarity: a meaningful slice of real ham radio software (WSJT-X, fldigi,
+gpredict, CHIRP) has an X11-first heritage, and native Wayland support across that niche
+software category is inconsistent — a minimal Wayland compositor (Sway/Labwc, the
+alternative named in the second planning session) would carry real compatibility risk for
+exactly the radio tooling this profile exists to run. Xfce also gets most of the "NASA
+command center" branding payoff for far less engineering cost than building a compositor
+config from scratch — dark theme, custom panel layout, custom wallpaper/icons, Citadel's
+dashboard pinned/auto-launched — without abandoning a familiar desktop metaphor for a family
+member who isn't technical. The Wayland option isn't wrong forever, just correctly not worth
+its cost and risk for this profile's actual job.
+
+**Lite's Raspberry Pi encryption default: unencrypted by default, encryption offered as an
+explicit opt-in during first-boot setup.** A real third option surfaced during this
+discussion that the second planning session hadn't named: **LUKS with network-unlock via
+`dropbear-initramfs`** (SSH into a minimal pre-boot environment over the LAN to type the
+passphrase remotely, no physical keyboard needed at the Pi itself). Worth keeping on record
+as a real middle-ground technique, but it doesn't solve the actual tension this project
+cares about — a human still has to be reachable and willing to act after every reboot, and
+the technique is historically unreliable over WiFi-only setups (initramfs network stacks
+typically expect wired Ethernet or a static DHCP lease before full networking is up),
+adding a real fragility risk on top of not fully closing the gap. Decision: **default to
+unencrypted**, consistent with this ecosystem's standing priority — stated repeatedly since
+[[user_stakes_and_motivation]] and carried through WayStation's own field-test framing —
+that a station surviving a power blip and coming back up on its own matters more than
+defending against a physical-theft threat model that doesn't match most real deployments
+(family homes, not exposed public infrastructure). Anyone whose own situation calls for
+stronger protection can still choose encryption (console-passphrase or the network-unlock
+variant) at first-boot setup — Undercroft doesn't force one answer for every deployment.
+
+With both closed, **Phase 0 is now fully decided except for one item**: which image-build
+tool actually works (`debos` vs. the `pi-gen`+`packer`/`live-build` fallback), which is real
+hands-on research, not a design question — it gets answered by trying it, not by discussion.
+
 ## Nice-to-haves floated for later, not yet decided on
 
 - Extending the boot-splash QR/IP display into Citadel's own dashboard as a persistent
@@ -484,38 +518,38 @@ dependency/opportunity to keep in mind.
 ## Status as of 2026-09-16
 
 Renamed from Bedrock to Undercroft after a real, completed USPTO search found a live
-conflict, then given four real planning sessions the same day: device scope/base OS/initial
-phases, a first external architecture review (kept/corrected/adopted explicitly above), a
-real shipping-order decision (**Undercroft Full ships completely before Undercroft Lite work
-starts**, Frank's own call), and a second reference document contributing a formal
-definition, the "core services" platform framing, and named hardware/use-case profiles tied
-to Citadel's own Compose-profile system. **With this pass, every project in the Citadel
-ecosystem has a real plan**: Citadel and WayStation are public and released, Gated and Muster
+conflict, then given five real planning sessions the same day: device scope/base OS/initial
+phases, a first external architecture review, a real shipping-order decision (**Undercroft
+Full ships completely before Undercroft Lite work starts**, Frank's own call), a second
+reference document contributing a formal definition/"core services" framing/named profiles,
+and a fifth session closing out the last two open design decisions. **Every real design
+question this project had is now decided.** With this pass, every project in the Citadel
+ecosystem has a real plan: Citadel and WayStation are public and released, Gated and Muster
 are fully scoped with private repos, and Undercroft now has a formal one-line definition, a
 seven-phase build order, a decided base OS, two named products with named sub-profiles
-(Full/Workstation; Lite/Pi 4/Pi 5), a "core services" architecture (Time/Hardware/Security/
-Storage/Updates), and its real dependencies — on Citadel's own unfinished Pi-tiering work,
-correctly sequenced to matter only at Lite's Phase 3, and on two design questions that are
-genuinely Frank's call — all named explicitly rather than glossed over. From here, per
-Frank's own framing, "then it's just building it" — see [[citadel_ecosystem_architecture]]
-for the ecosystem-wide phased build order this project's own Phase 1 now slots into.
+(**Full/Workstation, running Xfce**; **Lite/Pi 4/Pi 5, unencrypted by default with
+opt-in encryption**), a "core services" architecture (Time/Hardware/Security/Storage/
+Updates), and its real remaining dependencies — all on Citadel's own unfinished Pi-tiering
+work or on hands-on research, none on further discussion. From here, per Frank's own
+framing, "then it's just building it" — see [[citadel_ecosystem_architecture]] for the
+ecosystem-wide phased build order this project's own Phase 1 now slots into.
 
-**Real open items, honestly still open:**
-- Citadel's own Pi-tier Compose-profile split — still Citadel's item, not this project's, but
-  now only actually blocking at Lite's Phase 3, not blocking Full at all.
-- Two decisions that are genuinely Frank's to make, not defaulted here: which desktop
-  environment Full's Workstation profile uses (conventional vs. brand-matched but
-  higher-effort), and Lite's Raspberry Pi full-disk-encryption tradeoff
-  (passphrase-at-every-boot vs. staying unencrypted for true unattended operation).
+**Real open items, honestly still open — all research/build tasks now, no more open design
+questions:**
+- Citadel's own Pi-tier Compose-profile split — still Citadel's item, not this project's, and
+  only actually blocks Lite's Phase 3, not Full at all.
 - Several claims need live verification on real hardware before being trusted, not assumed
   correct from memory: the boot-console QR/IP display, Debian 12's non-free-firmware
   inclusion, WayStation's `.deb` actually installing cleanly on Debian 12, and the exact
   package sources for JS8Call/Pat on Debian.
 - `debos` and RAUC are both real, existing tools identified as the right research targets for
-  the image-pipeline and update-mechanism phases respectively — neither used hands-on yet.
+  the image-pipeline and update-mechanism phases respectively — neither used hands-on yet;
+  `debos` vs. the `pi-gen`+`packer`/`live-build` fallback is the one remaining Phase 0 item,
+  and it's a research question, not a design one.
 - Lite's own new real item: SD-card wear under Citadel's write-heavy workload — named, not
   solved, correctly deferred to Phase 3 rather than guessed at now.
 - WSP/1's own replay-resistance gap is still unfixed — dependable time sync is real
   infrastructure toward a future fix, not a fix by itself.
-- No code written yet. Phase 1 (Full's install script, x86 only) is the concrete next build
-  task whenever this project's turn comes up in the ecosystem's phased build order.
+- No code written yet. Phase 1 (Full's install script, x86 only, Xfce for the Workstation
+  profile) is the concrete next build task whenever this project's turn comes up in the
+  ecosystem's phased build order.
