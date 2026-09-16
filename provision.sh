@@ -215,7 +215,46 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5. First-boot, no-keyboard console: mDNS name + IP + a scannable QR to the
+# 5. Workstation profile: Xfce + Firefox ESR in "the Gated slot." Asked, not
+#    assumed — a Workstation build (someone sitting at the machine with
+#    radio gear) needs a real desktop; a pure headless hub doesn't. Default
+#    is yes, since Full's whole reason for existing (per its own ROADMAP.md)
+#    is the operator-station profile — a headless x86 box is a real, valid
+#    choice too, just not the common case this product is built around.
+# ---------------------------------------------------------------------------
+
+WORKSTATION="y"
+if [[ -t 0 ]]; then
+    read -r -p "Set up a desktop for someone to sit at (Workstation profile)? [Y/n] " reply
+    [[ "$reply" =~ ^[Nn] ]] && WORKSTATION="n"
+else
+    echo "-- Non-interactive install — defaulting to the Workstation profile (desktop + Firefox)."
+fi
+
+if [[ "$WORKSTATION" == "y" ]]; then
+    echo "-- Installing Xfce and Firefox ESR (real Debian 12 packages, not guessed)."
+    apt-get install -y -qq xfce4 xfce4-terminal lightdm firefox-esr
+
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl enable lightdm
+    fi
+
+    # Real X11 choice, not an oversight: a meaningful slice of ham radio
+    # software (WSJT-X, fldigi, gpredict, CHIRP) has an X11-first heritage
+    # with inconsistent native-Wayland support — Xfce's own default
+    # session is X11 on Debian 12, which is exactly the compatibility this
+    # profile exists to preserve, not something to "fix" by forcing Wayland.
+
+    # Firefox ESR here is the real placeholder named in ROADMAP.md's "Gated
+    # slot" — Undercroft's own build order shouldn't be blocked on Gated
+    # having zero code yet. Swapped for real Gated once it exists (Phase 6).
+    echo "-- Firefox ESR installed as the Gated slot placeholder — see ROADMAP.md Phase 6."
+else
+    echo "-- Skipping the desktop — headless Workstation build."
+fi
+
+# ---------------------------------------------------------------------------
+# 6. First-boot, no-keyboard console: mDNS name + IP + a scannable QR to the
 #    dashboard, printed to the physical console on every boot.
 # ---------------------------------------------------------------------------
 
@@ -267,7 +306,7 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
-# 6. Hand off to Citadel's own installer — no duplicated install logic here.
+# 7. Hand off to Citadel's own installer — no duplicated install logic here.
 # ---------------------------------------------------------------------------
 
 CITADEL_DIR="${CITADEL_DIR:-/home/${REAL_USER}/citadel}"

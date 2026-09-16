@@ -547,13 +547,39 @@ the script's own exit code.
   on real laptop hardware.
 - The GPS/chrony refclock stanza is written and inert exactly as designed — still needs a
   real USB GPS to activate and confirm.
-- Xfce (the Workstation profile's desktop environment) isn't installed by this script yet —
-  Phase 1 as tested so far covers the headless/server-side provisioning; the desktop-session
-  half is real remaining work, not yet built.
 - Debian 12's non-free-firmware inclusion and WayStation's `.deb` running cleanly on Debian
   12 both remain exactly as open as the earlier planning sessions left them.
 
 Pushed to `github.com/frankprobst5-stack/Undercroft` as `provision.sh`.
+
+## Build log: Workstation desktop added (2026-09-16, same day)
+
+**Xfce and Firefox ESR are now real, tested parts of `provision.sh`** — the one piece of
+Phase 1's scope that was still missing. Asked, not assumed: the script now prompts whether
+this install should set up a desktop ("Workstation profile") at all, defaulting to yes since
+Full's own reason for existing is the operator-station case, but a genuinely headless x86
+box stays a real, supported choice too.
+
+- Real packages confirmed on Debian 12 before writing anything: `xfce4` (4.18),
+  `xfce4-terminal`, `lightdm`, `firefox-esr` (140.16.0esr — current, not stale).
+- **Verified live, not assumed**: re-ran the full script end to end in a fresh
+  systemd-booted Debian 12 container (same method as Phase 1's own testing). Both packages
+  actually installed (`dpkg -l` confirmed), and — the real check that matters, not just "the
+  install command didn't error" — `lightdm` came back **`enabled`** via `systemctl
+  is-enabled`, meaning it will genuinely start a graphical session on next boot, not just
+  exist on disk.
+- Firefox ESR is deliberately the real "Gated slot" placeholder named in the second planning
+  session — Undercroft's own build order isn't blocked on Gated having real code yet (it
+  doesn't, beyond this same day's namespace prototype). Swapped for the real thing at Phase 6.
+- X11 (Xfce's own Debian 12 default session), not Wayland — matches the fifth planning
+  session's own reasoning for choosing Xfce at all: real ham radio software (WSJT-X, fldigi,
+  gpredict, CHIRP) skews X11-first, so this isn't a compatibility gap to "fix" later, it's
+  the reason Xfce was chosen in the first place.
+
+**Phase 1's install-script scope is now fully built and tested.** What remains for Phase 1
+is exactly what remained before this pass: real physical hardware to run the actual
+acceptance test on (reboot, disconnect the WAN), the laptop fix, and GPS activation — all
+container-test limitations, not missing logic.
 
 ## Nice-to-haves floated for later, not yet decided on
 
@@ -595,24 +621,26 @@ work or on hands-on research, none on further discussion. From here, per Frank's
 framing, "then it's just building it" — see [[citadel_ecosystem_architecture]] for the
 ecosystem-wide phased build order this project's own Phase 1 now slots into.
 
-**Phase 1 has real, tested code as of the same day**: `provision.sh` — installs Docker (real
-official method), Citadel hand-off, avahi/chrony/bubblewrap/radio tooling, the laptop fix,
-the boot-console QR, and a GPS time stanza — verified end-to-end against a real
-systemd-booted Debian 12 container, one real bug found and fixed (`sudo` assumed present,
-wasn't — fixed with `runuser`), and one real correction to an earlier planning session's own
-claim (JS8Call/Pat *are* in Debian main, not vendor-repo-only as stated in the fourth
-session). See the Build log above for exactly what's verified versus still needing real
-hardware.
+**Phase 1's full install-script scope is now real, tested, and complete**: `provision.sh` —
+Docker (real official method), Citadel hand-off, avahi/chrony/bubblewrap/radio tooling, the
+laptop fix, the boot-console QR, a GPS time stanza, and — added the same day — Xfce +
+Firefox ESR for the Workstation profile, asked rather than assumed. Verified end-to-end
+against a real systemd-booted Debian 12 container across two passes: two real bugs/gaps
+found and fixed (`sudo` assumed present on a minimal install, wasn't — fixed with `runuser`;
+Xfce/Firefox weren't in the script at all — now are, with `lightdm` confirmed genuinely
+`enabled` via `systemctl is-enabled`, not just installed), and one real correction to an
+earlier planning session's own claim (JS8Call/Pat *are* in Debian main, not vendor-repo-only
+as stated in the fourth session). See the Build log above for exactly what's verified versus
+still needing real hardware.
 
-**Real open items, honestly still open — all research/build tasks now, no more open design
-questions:**
+**Real open items, honestly still open — all hardware-verification tasks now, no more
+missing logic and no more open design questions:**
 - Citadel's own Pi-tier Compose-profile split — still Citadel's item, not this project's, and
   only actually blocks Lite's Phase 3, not Full at all.
 - A container test isn't a reboot, and there's no laptop or GPS in it either — the real
-  Phase 1 acceptance test, the laptop lid-switch fix, and the GPS refclock stanza all still
-  need actual hardware, not just a longer-lived container.
-- Xfce isn't installed yet — Phase 1 so far covers the headless/server-side provisioning; the
-  desktop-session half of the Workstation profile is real remaining work.
+  Phase 1 acceptance test, the laptop lid-switch fix, the GPS refclock stanza, and confirming
+  `lightdm` actually produces a usable graphical session on real hardware (not just
+  "enabled") all still need actual hardware, not just a longer-lived container.
 - Debian 12's non-free-firmware inclusion and WayStation's `.deb` actually installing cleanly
   on Debian 12 both remain exactly as open as before.
 - `debos` and RAUC are both real, existing tools identified as the right research targets for
