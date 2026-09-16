@@ -2,13 +2,14 @@
 
 **The ground everything else stands on.**
 
-Undercroft (formerly "Bedrock," renamed 2026-09-16 over real, live USPTO trademark
-conflicts) is the fourth project in the Citadel ecosystem (after Citadel, WayStation, and
-Gated): a planned custom appliance OS/install path so Citadel — and eventually Gated — runs
-on Raspberry Pi, desktop, and laptop hardware instead of a shared desktop machine. Ships as
-two real products from one shared foundation, built and released in that order: **Undercroft
-Full** (desktop/laptop, the operator-station profile) and **Undercroft Lite** (Raspberry Pi,
-the headless-hub profile) — see the Third planning session below for why that order.
+**Undercroft is the Citadel Ecosystem Linux distribution: a Debian-based, offline-first
+operating environment for deploying Citadel, WayStation, Gated, and supported communications
+hardware on dedicated Raspberry Pi and x86-64 systems.** (Formerly "Bedrock," renamed
+2026-09-16 over real, live USPTO trademark conflicts.) It's the fourth project in the Citadel
+ecosystem, after Citadel, WayStation, and Gated. Ships as two real products from one shared
+foundation, built and released in that order: **Undercroft Full** (desktop/laptop, the
+Workstation profile) and **Undercroft Lite** (Raspberry Pi, the Pi 4/Pi 5 profiles) — see the
+Third planning session below for why that order.
 
 ---
 
@@ -390,6 +391,75 @@ tier split exists — not before, and not by Undercroft guessing at it independe
 meantime. WayStation's and Muster's own Pi-performance work can reasonably wait on that same
 milestone rather than an earlier, less certain one.
 
+## Fourth planning session (2026-09-16, same day): reference document incorporated
+
+Frank brought a second detailed reference document (also written before the rename, using
+"Bedrock" throughout — read as Undercroft). Same discipline as every other external input in
+this ecosystem: incorporated critically, kept/corrected/adopted, not taken wholesale.
+
+**Formal definition, adopted near-verbatim**: *"Undercroft is the Citadel Ecosystem Linux
+distribution: a Debian-based, offline-first operating environment for deploying Citadel,
+WayStation, Gated, and supported communications hardware on dedicated Raspberry Pi and
+x86-64 systems."* This is a real gap the roadmap didn't have filled — three planning
+sessions of decisions with no single crisp answer to "what is this, in one sentence." This
+is that sentence.
+
+**Confirmed, no new ground**: the "provisioning script is the one source, images are just
+packaging" architecture and "don't make RAUC/A-B a Phase 1 requirement" sequencing both
+independently match what the first and third planning sessions already decided — good
+convergent signal, not new information.
+
+**Adopted — genuinely strengthens the plan:**
+- **"Core services" framing.** Reframes Time/Hardware/Security/Storage/Updates from a
+  scattered setup checklist into a defined platform contract — apps running on Undercroft
+  (Citadel, WayStation, eventually Gated) get accurate time, working radio permissions, a
+  firewall, and a real update path without each one solving it independently. This is a
+  sharper version of the "what makes this more than Debian with a wallpaper" argument this
+  project has needed since the first planning session.
+- **A real, correct link between dependable time and WSP/1's replay-resistance gap**
+  (see [[citadel_ecosystem_architecture]]'s open questions): replay-protection schemes
+  validate timestamps against a trust window, which only means anything if the clock is
+  trustworthy. `chrony`+GPS doesn't solve that gap by itself, but it's real infrastructure the
+  eventual fix would depend on — a connection neither prior planning session had made
+  explicit.
+- **A concrete, testable Phase 1/2 definition of done**: Debian → provisioning → Citadel →
+  WayStation → hardware → reboot → still works → disconnect the WAN → still works. Adopted as
+  the actual acceptance test for Full's Phase 1/2, replacing the vaguer "tested on real
+  hardware" language used before.
+- **The fuller RAUC update UX** (insert USB → version/signature shown → view changes/install
+  → installs to the inactive partition → reboot → health check → active, or automatic
+  rollback on a failed health check) — adopted as the real target flow for Phase 5, superseding
+  the earlier placeholder description ("a systemd timer just flags that an update exists").
+  That placeholder was always a stand-in for the pre-RAUC era; this is what it was standing in
+  for.
+- **Named hardware/use-case profiles, tied explicitly to a mechanism that already exists**:
+  Citadel's own Docker Compose profile system (real, shipped, not speculative) is exactly
+  what a named Undercroft profile should resolve to under the hood — a profile isn't a new
+  concept to build, it's a friendly name for a specific `COMPOSE_PROFILES` selection Citadel
+  already understands.
+
+**Naming overlap resolved, not really a design disagreement**: the reference document names
+sub-profiles like "Bedrock Pi Lite" and "Bedrock Pi Station" — written before this project's
+own "Undercroft Lite" product name existed, so "Lite" ends up meaning two different things
+one level apart (the whole Pi product vs. a Pi-4-class capability tier within it) purely by
+timing, not because the underlying idea is wrong. Resolved by naming Lite's own internal
+capability tiers by Pi model instead of reusing "Lite"/"Station":
+- **Lite — Pi 4 profile**: WayStation, basic Citadel services, radio tooling, GPS/time, no
+  local LLM by default.
+- **Lite — Pi 5 profile**: fuller Citadel module set, radio stack, SDR, Kiwix, selected
+  Ollama models where the hardware can actually carry them.
+- **Full's own equivalent is just "Workstation"** — x86 desktop/laptop hardware doesn't need
+  a capability sub-split the way Pi 4 vs. Pi 5 does, so Full stays a single profile.
+
+**Reframed, not adopted as a fourth coequal profile**: "Field Station" (Direwolf/APRS,
+Pat/Winlink, hamlib, JS8Call, Meshtastic/serial config, aggressive offline defaults) isn't
+really a hardware-capability tier alongside the Pi/Workstation profiles above — it's a
+different axis, a **use-case module preset** that could apply to either Full or Lite (a
+laptop taken into the field is still "Full" hardware-wise, just configured for heavy radio
+use). Treated as a preset offered in the first-boot wizard's module-selection step, consistent
+with how Citadel's own module system already keeps "which hardware profile" and "which
+modules are enabled" as two independent choices rather than flattening them into one list.
+
 ## Nice-to-haves floated for later, not yet decided on
 
 - Extending the boot-splash QR/IP display into Citadel's own dashboard as a persistent
@@ -414,19 +484,19 @@ dependency/opportunity to keep in mind.
 ## Status as of 2026-09-16
 
 Renamed from Bedrock to Undercroft after a real, completed USPTO search found a live
-conflict, then given three real planning sessions the same day: an internal one establishing
-device scope/base OS/initial phases, a second incorporating a detailed external architecture
-review (kept/corrected/adopted explicitly above, not taken wholesale), and a third resolving
-the real shipping order — **Undercroft Full (desktop/laptop) ships completely before
-Undercroft Lite (Raspberry Pi) work starts**, Frank's own sequencing call, chosen because it
-avoids fighting two hardware classes at once and lets Full ship without waiting on Citadel's
-own unbuilt Pi-tier split at all. **With this pass, every project in the Citadel ecosystem
-has a real plan**: Citadel and WayStation are public and released, Gated and Muster are fully
-scoped with private repos, and Undercroft now has a seven-phase build order, a decided base
-OS, two named products mapped onto the two device profiles (Full/operator-station,
-Lite/headless-hub), and its real dependencies — on Citadel's own unfinished Pi-tiering work,
-now correctly sequenced to matter only at Lite's Phase 3, and on two design questions that
-are genuinely Frank's call — named explicitly rather than glossed over. From here, per
+conflict, then given four real planning sessions the same day: device scope/base OS/initial
+phases, a first external architecture review (kept/corrected/adopted explicitly above), a
+real shipping-order decision (**Undercroft Full ships completely before Undercroft Lite work
+starts**, Frank's own call), and a second reference document contributing a formal
+definition, the "core services" platform framing, and named hardware/use-case profiles tied
+to Citadel's own Compose-profile system. **With this pass, every project in the Citadel
+ecosystem has a real plan**: Citadel and WayStation are public and released, Gated and Muster
+are fully scoped with private repos, and Undercroft now has a formal one-line definition, a
+seven-phase build order, a decided base OS, two named products with named sub-profiles
+(Full/Workstation; Lite/Pi 4/Pi 5), a "core services" architecture (Time/Hardware/Security/
+Storage/Updates), and its real dependencies — on Citadel's own unfinished Pi-tiering work,
+correctly sequenced to matter only at Lite's Phase 3, and on two design questions that are
+genuinely Frank's call — all named explicitly rather than glossed over. From here, per
 Frank's own framing, "then it's just building it" — see [[citadel_ecosystem_architecture]]
 for the ecosystem-wide phased build order this project's own Phase 1 now slots into.
 
@@ -434,7 +504,7 @@ for the ecosystem-wide phased build order this project's own Phase 1 now slots i
 - Citadel's own Pi-tier Compose-profile split — still Citadel's item, not this project's, but
   now only actually blocking at Lite's Phase 3, not blocking Full at all.
 - Two decisions that are genuinely Frank's to make, not defaulted here: which desktop
-  environment Full's operator-station profile uses (conventional vs. brand-matched but
+  environment Full's Workstation profile uses (conventional vs. brand-matched but
   higher-effort), and Lite's Raspberry Pi full-disk-encryption tradeoff
   (passphrase-at-every-boot vs. staying unencrypted for true unattended operation).
 - Several claims need live verification on real hardware before being trusted, not assumed
@@ -445,5 +515,7 @@ for the ecosystem-wide phased build order this project's own Phase 1 now slots i
   the image-pipeline and update-mechanism phases respectively — neither used hands-on yet.
 - Lite's own new real item: SD-card wear under Citadel's write-heavy workload — named, not
   solved, correctly deferred to Phase 3 rather than guessed at now.
+- WSP/1's own replay-resistance gap is still unfixed — dependable time sync is real
+  infrastructure toward a future fix, not a fix by itself.
 - No code written yet. Phase 1 (Full's install script, x86 only) is the concrete next build
   task whenever this project's turn comes up in the ecosystem's phased build order.
