@@ -494,6 +494,67 @@ With both closed, **Phase 0 is now fully decided except for one item**: which im
 tool actually works (`debos` vs. the `pi-gen`+`packer`/`live-build` fallback), which is real
 hands-on research, not a design question — it gets answered by trying it, not by discussion.
 
+## Build log: Phase 1 — first real code (2026-09-16, same day)
+
+**`provision.sh` is written, tested, and pushed.** Real, live-tested, not just written and
+assumed correct — the same discipline this whole ecosystem holds every install script to
+(see Citadel's own `install.sh` history). Testing method: a real Debian 12 container booted
+with actual `systemd` as PID1 (not a plain container, which can't run services at all — a
+first attempt against a plain container was correctly rejected as insufficient for exactly
+that reason), the script run against it end to end as root with a real non-root operator
+account, live service state checked afterward with `systemctl is-active`, not assumed from
+the script's own exit code.
+
+**What's actually verified now, not just planned:**
+- Every package name in the script — `avahi-daemon`, `bubblewrap`, `qrencode`, `chrony`,
+  `gpsd`, `gpsd-clients`, `pps-tools`, `direwolf`, `libhamlib-utils`, `js8call`, `pat`,
+  `rtl-sdr` — confirmed to exist and install cleanly on real Debian 12 "bookworm."
+- **Real correction to the fourth planning session's own claim**: JS8Call and Pat were
+  stated there as needing their own vendor repos, not Debian main — checked directly against
+  a live Debian 12 container and that's **wrong**; both are real Debian 12 main-archive
+  packages (`js8call` 2.2.0+ds-5, `pat` 0.13.1-1+b4). Worth remembering: that earlier
+  "correction" was itself an unverified claim reasoned from general knowledge, not checked —
+  exactly the mistake this project's whole culture exists to catch, caught now instead of
+  later.
+- Docker's install steps match Docker's own current official documentation (fetched live,
+  not reproduced from memory) — the newer deb822 `.sources` format, not the older `.list`
+  style.
+- **`rtl-sdr`'s own Debian package ships real, maintained udev rules**
+  (`/lib/udev/rules.d/60-librtlsdr0.rules`) — confirmed by inspecting the actual package
+  contents. No hand-authored vendor:product-ID rules needed for RTL-SDR, which is both
+  simpler and more correct than guessing at IDs from memory.
+- **Meshtastic devices need no dedicated udev rule at all** — they're generic ESP32 boards
+  over standard USB-serial chips, and Debian's own stock udev rules already grant `dialout`
+  group members access to `/dev/ttyUSB*`/`/dev/ttyACM*`. The real fix is just group
+  membership, confirmed by checking Debian's default rules rather than assumed.
+- Docker's own service, `avahi-daemon`, and `chrony` were all confirmed **actually running**
+  under real systemd after the script finished, not just "the install command didn't error."
+- The boot-console script was invoked directly and produces a real, correctly-rendered
+  scannable QR via `qrencode -t ANSIUTF8`; its systemd unit installs and symlinks correctly.
+- **A real bug found and fixed**: the script originally used `sudo -u "$REAL_USER"` to drop
+  privileges for the Citadel git clone — but a minimal Debian install has no guarantee `sudo`
+  itself is installed (the operator invoking this script *with* `sudo` says nothing about
+  whether the `sudo` binary exists for the script to shell out to internally), and the test
+  container hit exactly that missing binary. Fixed with `runuser` (part of `util-linux`, an
+  essential package guaranteed on every Debian install) instead.
+
+**What's still honestly unverified — same gaps already named, not new ones:**
+- A container test isn't a reboot. Every check above confirms *first-run* behavior; the real
+  Phase 1 acceptance test (reboot → still works → disconnect the WAN → still works) needs
+  actual hardware, not a long-lived container.
+- The laptop lid-switch/idle fix has no laptop or battery to test against here — the
+  `compgen -G "/sys/class/power_supply/BAT*"` detection logic is straightforward but unverified
+  on real laptop hardware.
+- The GPS/chrony refclock stanza is written and inert exactly as designed — still needs a
+  real USB GPS to activate and confirm.
+- Xfce (the Workstation profile's desktop environment) isn't installed by this script yet —
+  Phase 1 as tested so far covers the headless/server-side provisioning; the desktop-session
+  half is real remaining work, not yet built.
+- Debian 12's non-free-firmware inclusion and WayStation's `.deb` running cleanly on Debian
+  12 both remain exactly as open as the earlier planning sessions left them.
+
+Pushed to `github.com/frankprobst5-stack/Undercroft` as `provision.sh`.
+
 ## Nice-to-haves floated for later, not yet decided on
 
 - Extending the boot-splash QR/IP display into Citadel's own dashboard as a persistent
@@ -534,14 +595,26 @@ work or on hands-on research, none on further discussion. From here, per Frank's
 framing, "then it's just building it" — see [[citadel_ecosystem_architecture]] for the
 ecosystem-wide phased build order this project's own Phase 1 now slots into.
 
+**Phase 1 has real, tested code as of the same day**: `provision.sh` — installs Docker (real
+official method), Citadel hand-off, avahi/chrony/bubblewrap/radio tooling, the laptop fix,
+the boot-console QR, and a GPS time stanza — verified end-to-end against a real
+systemd-booted Debian 12 container, one real bug found and fixed (`sudo` assumed present,
+wasn't — fixed with `runuser`), and one real correction to an earlier planning session's own
+claim (JS8Call/Pat *are* in Debian main, not vendor-repo-only as stated in the fourth
+session). See the Build log above for exactly what's verified versus still needing real
+hardware.
+
 **Real open items, honestly still open — all research/build tasks now, no more open design
 questions:**
 - Citadel's own Pi-tier Compose-profile split — still Citadel's item, not this project's, and
   only actually blocks Lite's Phase 3, not Full at all.
-- Several claims need live verification on real hardware before being trusted, not assumed
-  correct from memory: the boot-console QR/IP display, Debian 12's non-free-firmware
-  inclusion, WayStation's `.deb` actually installing cleanly on Debian 12, and the exact
-  package sources for JS8Call/Pat on Debian.
+- A container test isn't a reboot, and there's no laptop or GPS in it either — the real
+  Phase 1 acceptance test, the laptop lid-switch fix, and the GPS refclock stanza all still
+  need actual hardware, not just a longer-lived container.
+- Xfce isn't installed yet — Phase 1 so far covers the headless/server-side provisioning; the
+  desktop-session half of the Workstation profile is real remaining work.
+- Debian 12's non-free-firmware inclusion and WayStation's `.deb` actually installing cleanly
+  on Debian 12 both remain exactly as open as before.
 - `debos` and RAUC are both real, existing tools identified as the right research targets for
   the image-pipeline and update-mechanism phases respectively — neither used hands-on yet;
   `debos` vs. the `pi-gen`+`packer`/`live-build` fallback is the one remaining Phase 0 item,
@@ -550,6 +623,3 @@ questions:**
   solved, correctly deferred to Phase 3 rather than guessed at now.
 - WSP/1's own replay-resistance gap is still unfixed — dependable time sync is real
   infrastructure toward a future fix, not a fix by itself.
-- No code written yet. Phase 1 (Full's install script, x86 only, Xfce for the Workstation
-  profile) is the concrete next build task whenever this project's turn comes up in the
-  ecosystem's phased build order.
