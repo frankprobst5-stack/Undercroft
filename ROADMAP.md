@@ -5,7 +5,10 @@
 Undercroft (formerly "Bedrock," renamed 2026-09-16 over real, live USPTO trademark
 conflicts) is the fourth project in the Citadel ecosystem (after Citadel, WayStation, and
 Gated): a planned custom appliance OS/install path so Citadel — and eventually Gated — runs
-on dedicated headless hardware instead of a shared desktop machine.
+on Raspberry Pi, desktop, and laptop hardware instead of a shared desktop machine. Ships as
+two real products from one shared foundation, built and released in that order: **Undercroft
+Full** (desktop/laptop, the operator-station profile) and **Undercroft Lite** (Raspberry Pi,
+the headless-hub profile) — see the Third planning session below for why that order.
 
 ---
 
@@ -314,31 +317,78 @@ security-vs-availability tradeoff tied to Frank's own real deployment context (f
 not a data center), not a default either of us should pick silently. Left open for Phase 0
 of the revised build order below.
 
-## Revised build order (supersedes the phase list in the first planning session)
+## Third planning session (2026-09-16, same day): Full ships completely before Lite starts
 
-1. **Phase 0 — decide** (this and the first planning session, together): base (Debian,
-   decided), image tool (`debos` vs. a `pi-gen`+`packer`/`live-build` pair, still to research
-   hands-on), desktop environment for the operator-station profile (open, Frank's call), and
-   the Pi encryption stance (open, real tradeoff named above).
-2. **Phase 1 — appliance script.** Stock Debian becomes a working Undercroft station, tested
-   on at least one real Pi 5 and one real x86 machine — not assumed from documentation.
-   Includes Docker install + hand-off to Citadel's own `install.sh`, systemd/mDNS appliance
-   behavior, the laptop lid-close fix, `bubblewrap` preinstalled for Gated, radio udev rules +
-   Direwolf/hamlib/Pat, and `chrony` GPS time sync.
-3. **Phase 2 — flashable Raspberry Pi image**, built from Phase 1's script via `debos` (or
-   the fallback pair if that research doesn't pan out), with the web-based first-boot wizard
-   (hardware profile, callsign, module selection) reached via the boot-console QR code.
-4. **Phase 3 — x86 USB installer image**, same shared base config as Phase 2, packaged for
-   desktop/laptop instead of SD card.
-5. **Phase 4 — offline A/B updates via RAUC**, with update bundles deliverable on a USB
-   stick and automatic rollback if a new slot fails to boot.
-6. **Phase 5 — Gated replaces the Firefox ESR placeholder** in the operator-station profile
-   once Gated itself has real code, plus the x86-convertible touch/rotation profile.
+Frank's own real sequencing call: **"would we be better off building the version for laptop
+desk top....when done coming out with a lte version for raspberry pi? ... i dont mind having
+a full version and a lte version."** This supersedes the "prove it on one Pi and one x86
+machine at the same time" framing in the second planning session's build order — good, sound
+reasoning, not just a preference:
 
-This also gives [[citadel_ecosystem_architecture]]'s own open question a real answer: once
-Phase 0/1 are done, "what is a Pi deployment" means something concrete for the rest of the
-family (WayStation's and Muster's own Pi-performance work) rather than staying an open
-unknown each project would otherwise have to guess at independently.
+- **Desktop/laptop is already the easier target** (named as such in the second session's own
+  external review) — proving the install script there first means the very first real,
+  shippable thing isn't also fighting ARM64/SD-card/thermal unknowns at the same time.
+- **It sidesteps Citadel's own unbuilt Pi-tier Compose-profile split as a blocker on shipping
+  anything at all.** That split only matters on Pi-class hardware (Citadel's own ROADMAP.md
+  names `ollama`/`kolibri`/`open-webui` as the heavy services that don't fit a Pi's resource
+  envelope) — desktop/laptop hardware doesn't hit that limit, so **Undercroft Full can ship a
+  complete, real release without waiting on Citadel's own open item at all.** Lite becomes the
+  point where that dependency actually has to be resolved, which is a cleaner, more honest
+  place for it to live than trying to solve it before anything ships.
+- **This maps directly onto the two device profiles from the second planning session, it
+  doesn't add a third thing to track**: **Undercroft Full = the operator-station profile**
+  (desktop environment, WayStation, a browser, radio gear, full Citadel stack) and
+  **Undercroft Lite = the headless-hub profile** (no desktop, network-only, trimmed to what a
+  Pi can actually carry once Citadel's tier split exists). Same underlying architecture
+  already decided, now given real product names and a real shipping order.
+- **Most of Phase 1's actual work doesn't get redone for Lite** — Docker install, the
+  Citadel `install.sh` hand-off, systemd/mDNS appliance behavior, `bubblewrap` preinstall,
+  radio udev rules, and `chrony` GPS time sync are all architecture-agnostic bash that runs
+  the same on ARM64 or x86_64. Building Full first proves that shared foundation for real;
+  Lite reuses it rather than rebuilding it. What Full does NOT cover, and what Lite's own
+  work actually is: real Pi hardware validation, applying Citadel's tier split once it
+  exists, and one genuine new Pi-only concern — **SD card wear**. Unlike a desktop/laptop's
+  SSD, a Pi's boot media is usually a consumer SD card, which degrades under the kind of
+  sustained write load a database/logging-heavy stack like Citadel's produces. Real, named
+  Lite-phase research item (log rotation tuned for flash, or recommending USB-SSD boot for
+  any serious Lite deployment) — not solved now, correctly deferred to when Lite is actually
+  built rather than guessed at speculatively here.
+
+## Revised build order (supersedes the phase list in the second planning session)
+
+1. **Phase 0 — decide**: base (Debian, decided), image tool (`debos` vs. a
+   `pi-gen`+`packer`/`live-build` pair, still to research hands-on), desktop environment for
+   Full's operator-station profile (open, Frank's call), and the Pi encryption stance for
+   Lite (open, real tradeoff named above — doesn't block Full at all, x86 FDE is
+   straightforward).
+2. **Phase 1 — Undercroft Full, the appliance script.** Built and proven on real x86
+   desktop/laptop hardware only — no Pi testing yet, deliberately. Docker install + hand-off
+   to Citadel's own `install.sh`, systemd/mDNS appliance behavior, the laptop lid-close fix,
+   `bubblewrap` preinstalled for Gated, radio udev rules + Direwolf/hamlib/Pat, `chrony` GPS
+   time sync, and the operator-station desktop environment + Firefox ESR in the Gated slot.
+3. **Phase 2 — Undercroft Full, x86 USB installer image**, built from Phase 1's proven
+   script (`debos` or the fallback pair), with the web-based first-boot wizard (hardware
+   profile, callsign, module selection) reached via the boot-console QR code. **Full ships
+   here** — a complete, real, usable release, not blocked on anything Pi-related.
+4. **Phase 3 — Undercroft Lite, ported to real Raspberry Pi hardware.** Takes Phase 1's
+   proven script, validates it on real Pi 5/Pi 4 hardware, strips to the headless-hub profile
+   by default (no desktop environment), tackles the SD-card-wear question named above, and
+   applies Citadel's own Pi-tier Compose-profile split — **this is the real, honest trigger
+   point for that dependency**, not something Lite can start seriously before Citadel ships
+   it.
+5. **Phase 4 — Undercroft Lite, flashable Raspberry Pi `.img`**, same pipeline tooling as
+   Phase 2, packaged for SD card instead of USB.
+6. **Phase 5 — offline A/B updates via RAUC**, applied to both Full and Lite once both images
+   exist, with update bundles deliverable on a USB stick and automatic rollback if a new slot
+   fails to boot.
+7. **Phase 6 — Gated replaces the Firefox ESR placeholder** in Full's operator-station
+   profile once Gated itself has real code, plus the x86-convertible touch/rotation profile.
+
+This also gives [[citadel_ecosystem_architecture]]'s own open question a real, honestly
+sequenced answer: "what is a Pi deployment" gets resolved at Phase 3, once Citadel's own
+tier split exists — not before, and not by Undercroft guessing at it independently in the
+meantime. WayStation's and Muster's own Pi-performance work can reasonably wait on that same
+milestone rather than an earlier, less certain one.
 
 ## Nice-to-haves floated for later, not yet decided on
 
@@ -364,30 +414,36 @@ dependency/opportunity to keep in mind.
 ## Status as of 2026-09-16
 
 Renamed from Bedrock to Undercroft after a real, completed USPTO search found a live
-conflict, then given two real planning sessions the same day: an internal one establishing
-device scope/base OS/initial phases, and a second incorporating a detailed external
-architecture review (kept/corrected/adopted explicitly above, not taken wholesale). **With
-this pass, every project in the Citadel ecosystem has a real plan**: Citadel and WayStation
-are public and released, Gated and Muster are fully scoped with private repos, and Undercroft
-now has a six-phase build order, a decided base OS, two named device profiles
-(headless-hub / operator-station), and its real dependencies — on Citadel's own unfinished
-Pi-tiering work, and on two design questions that are genuinely Frank's call — named
-explicitly rather than glossed over. From here, per Frank's own framing, "then it's just
-building it" — see [[citadel_ecosystem_architecture]] for the ecosystem-wide phased build
-order this project's own Phase 1 now slots into.
+conflict, then given three real planning sessions the same day: an internal one establishing
+device scope/base OS/initial phases, a second incorporating a detailed external architecture
+review (kept/corrected/adopted explicitly above, not taken wholesale), and a third resolving
+the real shipping order — **Undercroft Full (desktop/laptop) ships completely before
+Undercroft Lite (Raspberry Pi) work starts**, Frank's own sequencing call, chosen because it
+avoids fighting two hardware classes at once and lets Full ship without waiting on Citadel's
+own unbuilt Pi-tier split at all. **With this pass, every project in the Citadel ecosystem
+has a real plan**: Citadel and WayStation are public and released, Gated and Muster are fully
+scoped with private repos, and Undercroft now has a seven-phase build order, a decided base
+OS, two named products mapped onto the two device profiles (Full/operator-station,
+Lite/headless-hub), and its real dependencies — on Citadel's own unfinished Pi-tiering work,
+now correctly sequenced to matter only at Lite's Phase 3, and on two design questions that
+are genuinely Frank's call — named explicitly rather than glossed over. From here, per
+Frank's own framing, "then it's just building it" — see [[citadel_ecosystem_architecture]]
+for the ecosystem-wide phased build order this project's own Phase 1 now slots into.
 
 **Real open items, honestly still open:**
-- Citadel's own Pi-tier Compose-profile split (Citadel's item, not this project's — Undercroft
-  is blocked on it for anything beyond "run the full stack everywhere").
+- Citadel's own Pi-tier Compose-profile split — still Citadel's item, not this project's, but
+  now only actually blocking at Lite's Phase 3, not blocking Full at all.
 - Two decisions that are genuinely Frank's to make, not defaulted here: which desktop
-  environment the operator-station profile uses (conventional vs. brand-matched but
-  higher-effort), and the Raspberry Pi full-disk-encryption tradeoff (passphrase-at-every-boot
-  vs. staying unencrypted for true unattended operation).
+  environment Full's operator-station profile uses (conventional vs. brand-matched but
+  higher-effort), and Lite's Raspberry Pi full-disk-encryption tradeoff
+  (passphrase-at-every-boot vs. staying unencrypted for true unattended operation).
 - Several claims need live verification on real hardware before being trusted, not assumed
   correct from memory: the boot-console QR/IP display, Debian 12's non-free-firmware
   inclusion, WayStation's `.deb` actually installing cleanly on Debian 12, and the exact
   package sources for JS8Call/Pat on Debian.
 - `debos` and RAUC are both real, existing tools identified as the right research targets for
-  Phase 2 and Phase 4 respectively — neither has been used hands-on in this project yet.
-- No code written yet. Phase 1's install script is the concrete next build task whenever this
-  project's turn comes up in the ecosystem's phased build order.
+  the image-pipeline and update-mechanism phases respectively — neither used hands-on yet.
+- Lite's own new real item: SD-card wear under Citadel's write-heavy workload — named, not
+  solved, correctly deferred to Phase 3 rather than guessed at now.
+- No code written yet. Phase 1 (Full's install script, x86 only) is the concrete next build
+  task whenever this project's turn comes up in the ecosystem's phased build order.
