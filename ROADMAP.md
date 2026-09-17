@@ -754,6 +754,46 @@ container-test limitations, not missing logic.
   Anthropic's own terms say anything about documenting/bundling Claude Code's install inside a
   distributed OS image like this — worth Frank confirming directly with Anthropic before
   anything ships publicly claiming "Undercroft supports Claude Code," rather than assumed.
+- **A curated, CI-built local apt mirror (`aptly`-based)** `[DISCOVERY]`, 2026-09-17 — real,
+  externally-suggested idea for a genuine offline gap: no local mirror exists today, so
+  `apt install anything-not-preinstalled` simply fails once a real Undercroft box is actually
+  off-grid. The core architecture in the suggestion is sound and worth adopting eventually:
+  build a curated package snapshot with `aptly` in CI (decoupled from the shipped device,
+  correctly avoiding the "mirror silently goes stale forever" trap), bake the resulting
+  snapshot into the image, point local apt at it via `file://`. **The specific proposal
+  itself needed real correction before use, not wholesale adoption** — checked line-by-line
+  against a live Debian 12 archive, not taken on faith:
+  - **Three of the ~68 named packages don't exist as written.** `ddrescue` is really
+    `gddrescue`; `kismet` and `kalibrate-rtl` aren't in Debian's archive at all (checked main,
+    contrib, non-free, non-free-firmware — genuinely absent, would need a third-party repo or
+    building from source). This directly undercuts the proposal's own confident claim of
+    "validated binaries" — the list itself hadn't actually been checked against a real
+    archive.
+  - **The size estimate was real, verified by an actual install, not trusted.** A live
+    install of the corrected ~65-package set (`--no-install-recommends`, real `dpkg-query`
+    sizing, not the doc's own flat "1.2MB average × count" arithmetic) came to **~2.31GB for
+    amd64 alone** — meaningfully more than the doc's claimed "1.2GB to 1.8GB per
+    architecture," confirming the skew a handful of large packages (`build-essential`'s
+    toolchain, `wireshark-common`, `gqrx-sdr`'s GNU Radio dependency chain) actually produce
+    against a flat average. A real amd64+arm64 combo at this actual rate would land closer to
+    ~4.5GB, not the doc's claimed 3.5GB total.
+  - **Shipping a redundant arm64 mirror today is premature.** Undercroft Full (what's
+    actually being built right now) is amd64-only; Lite/arm64 doesn't exist yet (Phase 3/4).
+    Doubling the mirror for an architecture nothing runs yet is dead weight — scope to amd64
+    only until Lite is real.
+  - **`[trusted=yes]` on the client apt source is a real, avoidable security regression** —
+    it disables GPG verification entirely for local packages. `aptly publish` supports real
+    signing; the client should trust one specific real key, not blanket-disable verification.
+    Directly inconsistent with this ecosystem's own established practice elsewhere (Gated's
+    signed-release plan).
+  - **Permanently commenting out the real Debian sources list is the wrong move.** Undercroft
+    is offline-*first*, not offline-*only* — the box should still be able to reach the real
+    archive whenever it actually has connectivity (home base, any WiFi), not be surgically cut
+    off forever after first boot. apt already falls through gracefully when a source is
+    unreachable; nothing needs disabling.
+  Real, good architecture; not building it today — needs a deliberate, real curated package
+  list (Frank's own call, not inherited wholesale from an external template) and the fixes
+  above before it's worth the CI investment.
 
 ## Cross-project dependency: Gated's sealed-mode namespace
 
