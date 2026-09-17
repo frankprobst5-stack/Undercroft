@@ -732,6 +732,62 @@ is exactly what remained before this pass: real physical hardware to run the act
 acceptance test on (reboot, disconnect the WAN), the laptop fix, and GPS activation — all
 container-test limitations, not missing logic.
 
+## Build log: `provision.sh` folded into the Phase 2 recipe (2026-09-17)
+
+Real work following through on Phase 2's own build-time/first-boot split (see the standalone-
+boot verification entry above): `sandbox/build-iso.sh` now bakes in every real OS-layer step
+`provision.sh` established for Phase 1, split the same way that entry already decided —
+build-time packages/hooks versus a real gated first-boot script — plus the four hardening
+items adopted the same day from an external infrastructure review (chrony local-stratum
+fallback, ICMP redirect hardening, loose `rp_filter`, the diagnostic tooling bundle).
+
+**Build-time (baked into the image):**
+- Full package list: `avahi-daemon`/`libnss-mdns`, `bubblewrap`, `qrencode`, `chrony`+`gpsd`
+  stack, `git`, the radio stack (`direwolf`, `libhamlib-utils`, `js8call`, `pat`, `rtl-sdr`),
+  and the diagnostic bundle (`tcpdump`, `tshark`, `htop`, `iotop`, `iperf3`, `iproute2`, `iw`)
+  — every one confirmed as a real Debian 12 main-archive package via a live `apt-cache
+  policy` before being added, not assumed. `js8call`/`pat` in particular turned out to
+  already be plain main-archive packages — an earlier note in this project's own docs had
+  flagged them as needing a vendor repo; re-checked live and that's not (or no longer) true
+  for Debian 12.
+- Docker Engine via a real `config/hooks/normal/*.hook.chroot` script (live-build's own real
+  chroot-hook mechanism, confirmed against the `live-build` package's actual file manifest
+  before relying on it) — the exact same official-repo method `provision.sh` already used,
+  not reinvented.
+- `/etc/sysctl.d/99-undercroft.conf` (ICMP redirects off, `rp_filter=2`) and
+  `/etc/chrony/conf.d/undercroft.conf` (`local stratum 10` fallback + the same inert GPS
+  refclock stanza `provision.sh` had) — both real files via `includes.chroot`, both confirmed
+  by unsquashing the actual built ISO afterward and diffing their real content byte-for-byte
+  against what was written, not just trusting the build log.
+- The boot-console QR script and a new `undercroft-first-boot` script (handles the group
+  memberships, the Citadel clone, and the laptop-lid fix — everything that genuinely needs a
+  real installed system and a real operator, which no longer means `provision.sh`'s old
+  `$SUDO_USER`-detection dance now that Calamares creates that real account itself). Both
+  gated by the same `boot=live`-absent check the Calamares-autostart fix already established
+  as the reliable live-vs-install test; the first-boot script also gated by a real marker
+  file so it runs exactly once. Both services' real `systemctl enable` calls run inside a
+  second build-time hook — confirmed afterward by finding real `.wants/` symlinks in the
+  built image, not assumed to have worked.
+
+**Verified, not just built:**
+- Unsquashed the actual built ISO and confirmed every new file's real content matches
+  byte-for-byte, and that both new systemd services are genuinely enabled (real symlinks
+  present) — not inferred from a clean build log alone.
+- Booted the real ISO in the sandbox: still reaches the Xfce/Calamares live session cleanly
+  with 500+ new packages added — no regression from Phase 2's original verified state.
+- From inside that live session, confirmed Docker isn't just installed but actually running:
+  `docker --version` returned a real version string (29.8.1), and `systemctl is-active
+  docker` returned `active`. Live remote-keyboard verification of the sysctl/chrony pieces
+  specifically proved too unreliable to trust today (the same VNC keyboard fragility flagged
+  in yesterday's entry resurfaced on some commands) — not pursued further given the
+  byte-for-byte static file check already covers it and `systemd-sysctl` is core, standard,
+  and not a component with any real reason to behave differently here.
+
+Real, useful side-finding while researching the external mirror-review document (see Nice-
+to-haves below): `ddrescue`, `kismet`, and `kalibrate-rtl` were named in that document as
+plain Debian packages but aren't — confirmed live against Debian 12 main/contrib/non-free.
+Not used here; noted for whenever that mirror work actually happens.
+
 ## Nice-to-haves floated for later, not yet decided on
 
 - Extending the boot-splash QR/IP display into Citadel's own dashboard as a persistent
