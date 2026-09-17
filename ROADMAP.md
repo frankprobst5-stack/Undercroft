@@ -407,6 +407,41 @@ reasoning, not just a preference:
         creating the real operator account, cloning Citadel, running Citadel's own
         `install.sh`). The wizard is real, unstarted work, not a small wrapper around what
         already exists.
+
+   **Both resolved, Frank's own call, 2026-09-16 — and the second answer changed the shape of
+   the first:**
+   - **Question 1: a real interactive installer, not a dd-able image — specifically
+     Calamares**, not preseeded `debian-installer`. Real, better fit for the non-expert
+     preppers/ham operators this ecosystem serves (graphical, mouse-driven) over d-i's more
+     technical text UI, while staying a real, official option: Debian's own **Debian Live
+     Project explicitly documents Calamares as a supported live-image installer**, confirmed
+     via real research, not assumed. **This changes the toolchain finding above**: `debos`'s
+     `image-partition`/`filesystem-deploy` pair builds a *finished* disk image, not a bootable
+     *live* ISO with a squashfs Calamares can copy from — the actual native tool for a
+     Calamares-based installer is Debian's own **`live-build`** (also real, official, in
+     Debian 12 main: confirmed `live-build`, `calamares`, and `squashfs-tools` all resolve
+     via a live `apt-cache policy` against `debian:12-slim`, no third-party repo needed).
+     `debos` isn't wasted work — Phase 0's original question ("does debos work") is answered
+     and verified regardless, and it's still the right, simpler tool for **Phase 4's Lite
+     Pi image**, which genuinely wants a plain flashable `.img`, not an interactive installer.
+     Hands-on `live-build`+Calamares verification in progress the same day, same rigor as the
+     `debos` test (build a real ISO, not just trust `lb build`'s exit code).
+   - **Question 2: this made the "web-based first-boot wizard" mostly unnecessary.** Re-checked
+     what it was actually meant to solve — hardware profile, callsign, and module selection —
+     against what's real today: Calamares now owns disk partitioning, base install, the real
+     user account, and hostname (all of `provision.sh`'s old `$SUDO_USER`-detection problem
+     disappears — a real logged-in user exists by the time `provision.sh` would run, same as
+     it always assumed). **Module/hardware-profile selection turned out to already be fully
+     solved**: Citadel's own `install.sh` already runs real interactive per-module y/n prompts
+     with hardware-aware defaults (checked the actual code, not assumed). The one genuinely
+     open gap: **station identity (callsign, location, grid, lat/lon) has no setup path at
+     all today** — `.env.example` just ships them blank, meant for manual text-editing.
+     Frank's call: **add real prompts for these directly to `install.sh`**, alongside its
+     existing module-selection questions, rather than building a separate web app/QR-reached
+     wizard for a gap this small. A dedicated web-reached wizard stays a real, named option for
+     a true walk-up-and-scan headless experience later, but isn't worth building now for a
+     problem terminal prompts (already how headless setups get administered, over SSH) solve
+     reasonably well today.
 2. **Phase 1 — Undercroft Full, the appliance script.** Built and proven on real x86
    desktop/laptop hardware only — no Pi testing yet, deliberately. Docker install + hand-off
    to Citadel's own `install.sh`, systemd/mDNS appliance behavior, the laptop lid-close fix,
