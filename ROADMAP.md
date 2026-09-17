@@ -355,8 +355,58 @@ reasoning, not just a preference:
 1. **Phase 0 — decide**: base (Debian, decided), desktop environment for Full's Workstation
    profile (**decided: Xfce**, see the Fifth planning session below), Lite's encryption
    default (**decided: unencrypted by default, opt-in at first boot**, see the Fifth planning
-   session below), and image tool (`debos` vs. a `pi-gen`+`packer`/`live-build` pair — the one
-   remaining real Phase 0 item, still to research hands-on).
+   session below), and image tool. **Resolved 2026-09-16, hands-on, not just read about:**
+   `debos` — real, actively maintained (`go-debos/debos`, Matrix channel, package listed in
+   Debian sid), and proven end-to-end on this actual machine, not just documentation. Pulled
+   the official `godebos/debos` container (confirmed it exists and runs), then ran a real
+   recipe through it with real KVM passthrough (`/dev/kvm` present, VT-x confirmed via
+   `lscpu`, no host `kvm`-group membership needed since the container runs as root):
+   `debootstrap` a genuine Debian 12 (bookworm) `minbase` rootfs, `apt`-installed
+   `openssh-server`, `image-partition`'d a real 2GB raw disk image (msdos, boot+system
+   partitions), `filesystem-deploy`'d the rootfs onto it. Verified the actual output file, not
+   just a clean exit code: looped it back with `losetup -P`, mounted the system partition, and
+   confirmed a real `/etc/debian_version` (`12.15`) and a real installed `/usr/sbin/sshd`
+   binary — genuine proof the deployed filesystem is what was asked for, not an assumption
+   from a green build log. One real bug caught and fixed along the way, in the verification
+   script itself (not debos): the first pass mounted before the kernel had finished creating
+   the loop device's partition nodes, a classic race condition — fixed with `udevadm settle`
+   plus a short wait, confirmed clean on rerun. Not evaluated head-to-head against the
+   `packer`/`live-build` fallback, since debos cleared every real requirement on the first
+   hands-on pass — no reason to research a fallback that isn't needed.
+   - **Two real, unresolved design questions this surfaced, needing a decision before the
+     actual Undercroft recipe gets written**, not just a debos build config:
+     1. **What does "USB installer" actually mean, mechanically?** `debos`'s `image-partition`
+        naturally produces a *fixed-size* raw disk image — well-suited to a Pi-style "flash
+        and boot" image, not to an interactive installer that partitions whatever arbitrary
+        disk a given x86 box happens to have. Real, well-established precedent checked before
+        proposing anything: **Home Assistant OS** — a mature, widely-deployed real product
+        solving this exact problem (Debian-based appliance OS, generic x86-64 hardware, no
+        traditional Debian-installer/Calamares GUI) — ships exactly this way: a pre-built raw
+        `.img`, and the documented, recommended real install method is boot a live Linux
+        environment (from USB), `dd` the image directly onto the target's internal disk, then
+        reboot. **Likely the right model here too**: `debos` builds one raw growable image
+        (root partition auto-expands to fill whatever disk it lands on via `growpart`/
+        `resize2fs` on first boot — the same well-established technique Raspberry Pi OS
+        itself already uses), and "USB installer" means a live/rescue USB plus a real,
+        guarded `dd` script (target-disk confirmation before writing, given how unforgiving a
+        wrong-disk `dd` is) — not a from-scratch custom Debian-installer build. Frank's call
+        before this gets built for real.
+     2. **`provision.sh` needs a real split, not a straight port into the image recipe.** Read
+        it fresh with this in mind: it currently assumes an already-installed target with a
+        real logged-in user (`$SUDO_USER` detection, interactive Workstation-profile prompt,
+        git-cloning Citadel to that user's home, handing off to Citadel's own `install.sh`) —
+        none of which has a real answer yet at debos build time, since the image is built on a
+        generic host before any real operator or hardware exists. The web-based first-boot
+        wizard named in this same Phase 2 entry (hardware profile, callsign, module selection,
+        reached via the boot-console QR) doesn't exist as code yet at all — checked, nothing
+        under this repo matches `*wizard*`/`*first-boot*`. Real split needed: **build-time**
+        (bakeable into the image with no real user present — installing every apt package
+        Phase 1 already proved, the console-info script + its systemd unit, the not-yet-built
+        wizard's own web app) versus **first-boot** (needs the real target hardware/operator
+        present — the Workstation-or-headless choice, the laptop-lid fix's battery detection,
+        creating the real operator account, cloning Citadel, running Citadel's own
+        `install.sh`). The wizard is real, unstarted work, not a small wrapper around what
+        already exists.
 2. **Phase 1 — Undercroft Full, the appliance script.** Built and proven on real x86
    desktop/laptop hardware only — no Pi testing yet, deliberately. Docker install + hand-off
    to Citadel's own `install.sh`, systemd/mDNS appliance behavior, the laptop lid-close fix,
