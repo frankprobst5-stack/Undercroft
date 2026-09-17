@@ -424,8 +424,24 @@ reasoning, not just a preference:
      `debos` isn't wasted work — Phase 0's original question ("does debos work") is answered
      and verified regardless, and it's still the right, simpler tool for **Phase 4's Lite
      Pi image**, which genuinely wants a plain flashable `.img`, not an interactive installer.
-     Hands-on `live-build`+Calamares verification in progress the same day, same rigor as the
-     `debos` test (build a real ISO, not just trust `lb build`'s exit code).
+     **Hands-on `live-build`+Calamares verification completed the same day, same rigor as the
+     `debos` test — genuinely booted, not just a green build log.** Built a real ~1.1GB
+     bootable ISO (`file` confirmed real ISO 9660, bootable), unsquashed the actual image and
+     confirmed `usr/bin/calamares` genuinely present (not just requested in a package list),
+     then booted it for real in QEMU/KVM: real UEFI (OVMF) firmware, real GRUB menu, real
+     Debian 12 boot splash, landing on a real Xfce desktop with **Calamares auto-launching
+     exactly as configured**, showing its real welcome screen. First boot (no virtual disk
+     attached) correctly showed Calamares' own real validation refusing to proceed ("no
+     partitions to install on," "at least 10 GiB required") — genuine, working validation
+     logic, not a bug, confirmed by attaching a real 20GB virtio disk and rebooting: the error
+     banners disappeared, meaning the disk was correctly detected as a real install target. A
+     durable, reusable QEMU+noVNC test sandbox (`sandbox/` — `Dockerfile`, `start.sh`,
+     `build-iso.sh`, `README.md`) came out of this, built from the same individually-verified
+     Debian 12 packages discipline as everything else here (`qemu-system-x86`, `ovmf`,
+     `novnc`, `websockify`, no unaudited third-party image) — lets anyone click through the
+     real Calamares installer and desktop in a browser before ever touching a real USB stick,
+     and doubles as the real test environment for Gated once it exists (Phase 6): same
+     sandbox, same Xfce desktop, Gated just takes the browser slot Firefox ESR holds today.
    - **Question 2: this made the "web-based first-boot wizard" mostly unnecessary.** Re-checked
      what it was actually meant to solve — hardware profile, callsign, and module selection —
      against what's real today: Calamares now owns disk partitioning, base install, the real
