@@ -736,6 +736,24 @@ container-test limitations, not missing logic.
 
 - Extending the boot-splash QR/IP display into Citadel's own dashboard as a persistent
   "connect a new device" panel, not just a one-time boot-console thing.
+- **Claude Code as a documented, opt-in convenience** `[DISCOVERY]`, 2026-09-17 — Frank's own
+  idea: he's actively running Claude Code (this very tool) on Ubuntu today and wants the same
+  option on Undercroft. Technically no real obstacle — Undercroft is plain Debian 12
+  underneath, nothing about it would break a standard CLI tool. The one real, unavoidable
+  tension: Claude Code needs live internet to reach Anthropic's API at all — no offline mode
+  exists — a direct conflict with Undercroft's offline-first identity, though it works fine
+  whenever the box *does* have real connectivity (home base, any WiFi), same as any other
+  online convenience. **Resolved shape, matching the exact pattern already settled for
+  Gated's built-in-AI question**: don't bake in a subscription or pre-baked credentials (not
+  actually possible either — there's no way to embed one person's paid Anthropic account into
+  a public image for other people to use), instead ship a clean, documented, one-command
+  opt-in setup: install Claude Code, sign up for your own Anthropic account, billed to you
+  (same real $20/month Pro plan Frank is on), not bundled or resold. Honest, legal, and
+  consistent with how this ecosystem already treats every other cloud-dependent convenience —
+  informed choice, never a silent default. **Real open item, not yet checked**: whether
+  Anthropic's own terms say anything about documenting/bundling Claude Code's install inside a
+  distributed OS image like this — worth Frank confirming directly with Anthropic before
+  anything ships publicly claiming "Undercroft supports Claude Code," rather than assumed.
 
 ## Cross-project dependency: Gated's sealed-mode namespace
 
