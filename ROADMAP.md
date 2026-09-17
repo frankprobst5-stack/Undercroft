@@ -442,6 +442,56 @@ reasoning, not just a preference:
      real Calamares installer and desktop in a browser before ever touching a real USB stick,
      and doubles as the real test environment for Gated once it exists (Phase 6): same
      sandbox, same Xfce desktop, Gated just takes the browser slot Firefox ESR holds today.
+   - **Follow-up, same day: standalone-boot verification, with Frank actually driving it
+     hands-on.** The check above proved Calamares *completes* an install; it didn't prove the
+     *resulting disk* boots on its own afterward — a real, distinct question, and a real,
+     multi-round debugging session with Frank clicking through the sandbox live surfaced
+     several genuine bugs, none of them in Calamares/GRUB/the real install itself:
+     - **UEFI NVRAM doesn't survive a container restart by default.** `start.sh` copied a
+       fresh factory-default `OVMF_VARS.fd` on every single run, silently wiping GRUB's own
+       registered boot entry the moment the sandbox container restarted — a real install
+       completed and rebooted cleanly, but the *next* run landed in the UEFI Interactive Shell
+       instead of GRUB. Fixed: `VARS_PATH` now accepts a real, persistent vars file that
+       survives across runs.
+     - **QEMU's VNC server needs an explicit keyboard layout.** Typed commands in the UEFI
+       shell came out corrupted in a very specific, diagnostic way (`0` became `o`, `:` became
+       `;`) — both Frank's real typing and this session's automated input, confirming it was a
+       genuine keymap mismatch in QEMU's VNC keyboard translation, not a typing mistake or an
+       automation limitation. Fixed with `-k en-us`.
+     - **OVMF didn't recognize a `virtio-blk` disk as a boot candidate without an explicit
+       `bootindex`.** Real UEFI firmware does not reliably honor QEMU's legacy BIOS-style
+       `-boot c|d` flag the way real/legacy BIOS does — with none set, a fresh boot fell
+       through to PXE/network boot attempts instead of trying the attached disk at all. Fixed
+       by giving every boot device (disk, CD-ROM, network) an explicit `bootindex` via real
+       `-device`/`bootindex=` syntax (confirmed against QEMU's own device docs, not guessed
+       after the first attempt failed), and switched the disk to AHCI (`ide-hd` on a real
+       `ahci` controller) to match what real x86 hardware Undercroft targets overwhelmingly
+       uses, rather than `virtio-blk`.
+     - **A real out-of-space failure mid-install, caught and root-caused, not silently
+       retried.** The sandbox's own scratch storage (a small RAM-backed tmpfs) filled
+       completely during a real Calamares file-unpack step — confirmed by the qcow2 disk
+       image's own mtime having stopped advancing minutes earlier despite QEMU still burning
+       real CPU, meaning the write path was genuinely wedged, not just slow. Freeing space
+       afterward didn't recover it; the fix was moving all sandbox disk images and ISOs onto
+       real disk storage (846GB free) instead of the tmpfs, and redoing the install clean.
+     - **Calamares' own `unpackfs` module copies the entire live filesystem onto the target
+       disk verbatim — autostart files included.** The `calamares.desktop` autostart entry
+       written for the *live* session carried straight onto the *installed* system, so
+       Calamares re-launched on every real boot of the freshly installed machine. Fixed by
+       guarding the autostart's `Exec=` with a real, reliable live-vs-installed check
+       (`grep -q boot=live /proc/cmdline` — live-boot's own genuine kernel-command-line
+       marker, never present in an installed system's real `grub.cfg`), not a guess.
+     - **Cosmetic, Frank's own catch**: QEMU's default machine type includes a virtual floppy
+       controller even with nothing attached, showing a "Floppy Disk" desktop icon nobody
+       needs anymore. Fixed with `-global isa-fdc.fdtypeA=none -global isa-fdc.fdtypeB=none`
+       (confirmed as real, valid QEMU device properties via `-device isa-fdc,help` before
+       adding it, not assumed).
+     **After all of the above, real, hands-on, unambiguous success**: a fresh install, done
+     live with Frank clicking through every Calamares step himself, rebooted into a genuinely
+     standalone real Debian 12 + Xfce desktop — no live medium attached to that boot at all,
+     confirmed by Frank directly (clean desktop, no floppy icon, no Calamares re-launching).
+     This is real, complete, end-to-end proof of Phase 2's actual build→install→boot pipeline,
+     not just its individual pieces.
    - **Question 2: this made the "web-based first-boot wizard" mostly unnecessary.** Re-checked
      what it was actually meant to solve — hardware profile, callsign, and module selection —
      against what's real today: Calamares now owns disk partitioning, base install, the real

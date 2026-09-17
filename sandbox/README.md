@@ -58,6 +58,27 @@ hardware.
 `--device /dev/kvm` gives real hardware-accelerated virtualization — leave
 it off and it still works, just much slower (plain software emulation).
 
+To make a completed Calamares install actually bootable on a *later* run
+(otherwise GRUB's UEFI boot entry gets wiped every restart — a real bug
+found and fixed 2026-09-16), create and mount a persistent vars file:
+
+```bash
+cp /usr/share/OVMF/OVMF_VARS.fd vars.fd   # or extract from the image, see Dockerfile
+docker run ... -v $(pwd)/vars.fd:/vars/OVMF_VARS.fd ...
+```
+
+Then to boot the installed system directly instead of the ISO:
+
+```bash
+docker run --rm -it \
+    --device /dev/kvm \
+    -e BOOT_FROM=disk \
+    -v $(pwd)/disk.qcow2:/disk/disk.qcow2 \
+    -v $(pwd)/vars.fd:/vars/OVMF_VARS.fd \
+    -p 6080:6080 \
+    undercroft-sandbox
+```
+
 ## Reused later for Gated
 
 Once Gated has real code (Undercroft ROADMAP.md Phase 6), the exact same
