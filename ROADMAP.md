@@ -790,6 +790,14 @@ Not used here; noted for whenever that mirror work actually happens.
 
 ## Nice-to-haves floated for later, not yet decided on
 
+- **Ecosystem-wide rebrand, assets placed 2026-09-18**: the Citadel Ecosystem's new brand mark
+  (tower/compass/globe hexagon) was rolled out across the ecosystem's other projects — real
+  master PNG/SVG assets now sit at `brand/undercroft-logo.png`, `brand/undercroft-lockup.png`,
+  `brand/undercroft-icon.svg`. **Deliberately not wired into the actual OS yet** — unlike a web
+  app's favicon swap, doing this right means a real Calamares `branding.desc`/slideshow theme,
+  a GRUB boot menu theme, and a Plymouth boot-splash, none of which exist today (this project
+  currently ships stock `calamares-settings-debian` branding, unstyled). That's genuine new
+  feature work for its own build pass, not a side effect of a logo swap.
 - Extending the boot-splash QR/IP display into Citadel's own dashboard as a persistent
   "connect a new device" panel, not just a one-time boot-console thing.
 - **Claude Code as a documented, opt-in convenience** `[DISCOVERY]`, 2026-09-17 — Frank's own
