@@ -31,6 +31,11 @@
 
 set -euo pipefail
 
+# Real path to this script's own checkout -- used below to find brand/
+# alongside it (this script is run in-place from a git clone, not piped
+# in, so this is always accurate).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # ---------------------------------------------------------------------------
 # 0. Preflight
 # ---------------------------------------------------------------------------
@@ -249,6 +254,77 @@ if [[ "$WORKSTATION" == "y" ]]; then
     # slot" — Undercroft's own build order shouldn't be blocked on Gated
     # having zero code yet. Swapped for real Gated once it exists (Phase 6).
     echo "-- Firefox ESR installed as the Gated slot placeholder — see ROADMAP.md Phase 6."
+
+    # -----------------------------------------------------------------------
+    # Branded desktop background: the Citadel Ecosystem crest, centered on
+    # the ecosystem's own canonical background color (brand/PALETTE.md's
+    # --bg: #05090d), replacing Debian's default wallpaper. Composited once
+    # here, applied via a first-login autostart script rather than a
+    # hand-authored xfconf property path — xfce4-desktop keys its wallpaper
+    # properties by the real detected monitor name (e.g. "monitorHDMI-1"),
+    # which can't be predicted ahead of time for arbitrary hardware.
+    # Querying the channel's own live property list at first login, after
+    # xfdesktop has actually initialized it, is the only reliable way to
+    # target the right property on unknown hardware instead of guessing.
+    # -----------------------------------------------------------------------
+    echo "-- Installing the branded desktop wallpaper."
+    apt-get install -y -qq imagemagick
+
+    mkdir -p /usr/share/backgrounds/undercroft
+    convert -size 3840x2160 xc:'#05090d' \
+        \( "$SCRIPT_DIR/brand/undercroft-logo.png" -resize 1150x1150 \) \
+        -gravity center -composite \
+        /usr/share/backgrounds/undercroft/undercroft-wallpaper.png
+
+    cat > /usr/local/bin/undercroft-set-wallpaper <<'SCRIPT'
+#!/usr/bin/env bash
+# Applies the Undercroft branded wallpaper on first real Xfce login. Waits
+# for xfce4-desktop to expose its own live property list, then sets
+# last-image/image-style on whatever workspace properties it actually
+# created for this machine's real monitor(s) -- never a guessed monitor
+# name. Runs once per account (marker file below); never re-forces the
+# wallpaper if the operator changes it later.
+set -euo pipefail
+
+MARKER="$HOME/.config/.undercroft-wallpaper-set"
+[[ -f "$MARKER" ]] && exit 0
+
+IMG="/usr/share/backgrounds/undercroft/undercroft-wallpaper.png"
+[[ -f "$IMG" ]] || exit 0
+
+for _ in $(seq 1 20); do
+    xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -q '/workspace0$' && break
+    sleep 1
+done
+
+xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E '/workspace[0-9]+$' | while read -r ws; do
+    if xfconf-query -c xfce4-desktop -p "$ws/last-image" >/dev/null 2>&1; then
+        xfconf-query -c xfce4-desktop -p "$ws/last-image" -s "$IMG"
+    else
+        xfconf-query -c xfce4-desktop -p "$ws/last-image" -n -t string -s "$IMG"
+    fi
+    if xfconf-query -c xfce4-desktop -p "$ws/image-style" >/dev/null 2>&1; then
+        xfconf-query -c xfce4-desktop -p "$ws/image-style" -s 5
+    else
+        xfconf-query -c xfce4-desktop -p "$ws/image-style" -n -t int -s 5
+    fi
+done
+
+mkdir -p "$(dirname "$MARKER")"
+touch "$MARKER"
+SCRIPT
+    chmod +x /usr/local/bin/undercroft-set-wallpaper
+
+    mkdir -p /etc/xdg/autostart
+    cat > /etc/xdg/autostart/undercroft-wallpaper.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Undercroft wallpaper
+Exec=/usr/local/bin/undercroft-set-wallpaper
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true
+NoDisplay=true
+EOF
 else
     echo "-- Skipping the desktop — headless Workstation build."
 fi

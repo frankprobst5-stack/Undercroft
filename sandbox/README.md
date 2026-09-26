@@ -19,8 +19,13 @@ mkdir -p build-output
 docker run --rm --privileged \
     -v "$(pwd)/build-output":/output \
     -v "$(pwd)/build-iso.sh":/build-iso.sh:ro \
+    -v "$(pwd)/../brand":/brand:ro \
     debian:12-slim bash /build-iso.sh
 ```
+
+The `/brand` mount is the ecosystem's own crest artwork (`../brand/`,
+alongside `provision.sh` at the repo root) — `build-iso.sh` composites it
+into the branded desktop wallpaper baked into the image.
 
 This writes `build-output/undercroft-sandbox.iso` (~1.1GB). `build-output/`
 is gitignored — the ISO itself never belongs in version control.
