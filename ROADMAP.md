@@ -788,6 +788,56 @@ to-haves below): `ddrescue`, `kismet`, and `kalibrate-rtl` were named in that do
 plain Debian packages but aren't — confirmed live against Debian 12 main/contrib/non-free.
 Not used here; noted for whenever that mirror work actually happens.
 
+## Build log: branded desktop, and a real fresh-install verification (2026-09-27)
+
+Two real pieces of work, plus one real process finding along the way.
+
+**Branded wallpaper**: both `provision.sh` and `sandbox/build-iso.sh` now composite the
+Citadel Ecosystem crest (`brand/undercroft-logo.png`) onto the ecosystem's own canonical
+background color and set it as the Xfce wallpaper on first login, replacing Debian's default.
+Applied via a runtime autostart script that queries `xfce4-desktop`'s own live property list
+rather than a hand-authored xfconf path — wallpaper properties are keyed by the real detected
+monitor name, which can't be predicted for arbitrary target hardware.
+
+**Real process finding**: while staging that commit, discovered `sandbox/build-iso.sh` was
+still only 74 lines in git — the entire Docker/radio-package/hardening pass this ROADMAP's own
+2026-09-17 entry above describes as "committed, verified end-to-end" had only ever been
+committed to *this document*, never the actual script (that commit touched `ROADMAP.md` alone,
+56 lines, no code). The real code had been sitting uncommitted in the working tree for over a
+week. Now finally captured in git for real, bundled into the same commit as the wallpaper work.
+
+**Real fresh-install verification**: with that gap fresh in mind, didn't take the existing
+`build-output/fresh-disk.qcow2` test disk on faith either. Booted it and ran
+`systemctl is-active docker; docker --version` for real inside it — genuinely came back
+`inactive` / `command not found`, no Docker at all. Before treating that as a live regression,
+checked `build-output/build.log` (the real build log for the ISO that's supposed to have
+produced that disk): it clearly shows `docker-ce`/`docker-ce-cli` installing successfully.
+Conclusion: `build-iso.sh` itself is correct; `fresh-disk.qcow2` was a stale artifact, almost
+certainly installed from an earlier ISO build that predated the Docker/radio-package work.
+
+Rather than leave that as a guess, did a real fresh Calamares install from the *existing*
+`undercroft-sandbox.iso` (no rebuild needed — the ISO was already confirmed correct) onto a
+new blank disk, with a properly persisted `OVMF_VARS.fd` this time (the real NVRAM-persistence
+requirement this project already found and documented on 2026-09-16). Booted the result
+standalone (no installer media attached) and confirmed, cleanly, with no keystroke-garbling
+this time (`vncdotool`'s default 10ms inter-key delay was the real cause of the garbled reads
+in earlier sessions — fixed by passing `--delay=120`ms):
+
+- `systemctl is-active docker` → `active`
+- `docker --version` → `Docker version 29.8.1, build 4a63305`
+- `groups` on the real operator account → includes `docker`, `dialout`, `plugdev` (confirms
+  `undercroft-first-boot`'s group-membership step ran for real)
+- `UNDERCROFT-NEXT-STEPS.txt` present on the desktop (confirms the rest of first-boot ran too)
+- `which direwolf js8call` → both present on `PATH`
+
+The old stale disk/vars pair was kept, not deleted, renamed to `*-STALE-2026-09-17.qcow2.bak`
+/ `*-STALE-2026-09-17.fd.bak`; the newly verified pair was promoted to the canonical
+`fresh-disk.qcow2` / `vars.fd` names so the next person following `sandbox/README.md` gets the
+good one by default.
+
+Also added this project's first real root `README.md` and `LICENSE` (GPL-3.0-or-later,
+matching Citadel/WayStation), as groundwork for a real public release.
+
 ## Nice-to-haves floated for later, not yet decided on
 
 - **Ecosystem-wide rebrand, assets placed 2026-09-18**: the Citadel Ecosystem's new brand mark
