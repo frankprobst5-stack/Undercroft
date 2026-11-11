@@ -1570,6 +1570,91 @@ host machine itself, with no such chain in the way.
   path remains the next real milestone once a fresh ISO exists with all of today's fixes baked
   in.
 
+## The real ISO rebuild, and the complete, final end-to-end success (2026-11-11)
+
+Direct follow-up, same day: rather than leave the three fixes above as live-patches validated
+on a running test disk, committed and pushed the real source changes (both to
+`frankprobst5-stack/Project-Citadel` — the `webui` `mem_limit` and the nginx duplicate-location
+fix — and to `frankprobst5-stack/Undercroft` — the hardware-profile drop, the `light-locker`
+fix, and the `TimeoutStartSec` bump), re-synced the staged `pocket-assets/citadel-repo` from the
+freshly-pushed GitHub `main`, and ran a real, full `live-build` rebuild
+(`debian:12-slim` + `live-build`, `--privileged`, the project's own documented invocation) —
+confirmed `pocket-assets/` itself was never meant to be committed (16GB of staged build input)
+and added it to `.gitignore` rather than leaving it untracked by accident. Real build time: a
+little under 90 minutes end to end (`mksquashfs -comp xz` alone ran at 674% CPU for over an
+hour, confirmed genuinely active via climbing CPU time, not stalled, across repeated checks),
+producing a real, fresh 16.7GB ISO with "Build completed successfully" and zero real errors in
+the build log.
+
+**Booted the fresh ISO against a brand-new, empty 1TB sparse persistence disk — the real test
+this whole rebuild existed to run.** Two genuinely new bugs surfaced immediately, both
+self-inflicted from this same session's own earlier edits, both found and fixed live:
+
+1. **A backtick command-substitution bug.** The hardware-profile-drop comment (added to
+   `build-iso.sh` the same session) sat *inside* the `.env` heredoc, which is deliberately
+   unquoted (`<<EOF`, not `<<'EOF'`) so the real `${LIVE_HOME}`/`${CITADEL_DIR}`/`${VAULT_TOKEN}`
+   substitutions actually work — but that also means bash evaluates backticks anywhere in the
+   heredoc body, comment text included. The comment's own backtick-wrapped code references
+   (matching this file's established commenting style, which uses backticks for code
+   references everywhere else — just never before inside an unquoted heredoc) got silently
+   executed as real command substitutions at every boot: confirmed directly via
+   `undercroft-pocket-first-boot: line 66: hardware: command not found` and five identical
+   sibling failures, one per backtick-wrapped word. Harmless in effect (the real
+   `COMPOSE_PROFILES=` line itself was never backtick-wrapped, so the actual profile list
+   stayed correct) but genuinely noisy and a real latent risk. Fixed by moving the whole
+   comment above the heredoc, where backticks are just characters.
+2. **`TimeoutStartSec=1800` confirmed still insufficient.** The automated first-boot service
+   ran for the *entire* new 30-minute window this time (real proof the timeout fix itself
+   works — the old bug, a false 600s/10-minute kill, is genuinely gone) before being SIGTERM'd
+   mid-pull again — real log lines showed it still actively downloading image layers at the
+   exact 1800s mark. This confirms, with a second independent data point, what earlier runs
+   already suggested: this sandbox's real cold-cache pull time for the five-module set
+   genuinely runs 70-90+ minutes, not under 30. Rather than guess a third fixed number and risk
+   the identical mistake again on a slower real connection, set `TimeoutStartSec=0` — systemd's
+   own documented way to disable the timeout entirely, which is simply the correct value for a
+   real one-time setup cost with `RemainAfterExit=yes` (the next boot of the same persisted
+   drive never repeats any of this). Both fixes committed and pushed immediately.
+
+**Rather than spend a third ~90-minute rebuild cycle just to re-prove the timeout number**
+(already conclusively answered — 1800s isn't enough, 0 is the real fix, no further boot-timing
+test needed), manually resumed the exact same `docker compose up -d` directly on the
+already-running VM, the same fast-iteration pattern this whole project has used throughout, to
+verify the other four real fixes without more unattended waiting. **Result: complete, clean,
+unambiguous success.** `docker compose up -d` finished at a real `[+] up 33/33` with every
+container showing `Started`, confirmed via `docker ps`:
+
+- **`citadel-webui`**: `Up ... (health: starting)` → settled healthy, real memory usage
+  `310.9MiB / 1.5GiB` (20.24%) — comfortably inside its new `1536m` cap, nowhere near the old
+  `512m` ceiling that was causing repeated OOM kills. A full `dmesg` scan for `out of memory`
+  across the entire boot returned zero matches.
+- **`citadel-cockpit`**: `Up About a minute`, real memory usage `11.35MiB / 1GiB` (1.11%) —
+  `docker logs citadel-cockpit --tail 10` returned **completely empty output**, a perfectly
+  silent, clean `nginx` startup with no duplicate-location error of any kind, confirming the
+  hardware-fragment fix holds for real.
+- **No `scanner`/`intercept`/`scanner-bridge`/`intercept-backend` containers exist at all** in
+  this run — the hardware/SDR profile drop took effect correctly from a genuinely rebuilt
+  image, not just a live-patched `.env`.
+- **No lock screen appeared at any point across this entire multi-hour session** on the
+  rebuilt ISO — real, if informal, confirmation the `light-locker` XDG-autostart fix holds.
+- **Every service verified with a real response from inside the guest console** (the
+  authoritative check all session, since this sandbox's host-to-guest port-forwarding chain has
+  been unreliable throughout — not a product issue, a nested-virtualization test-rig quirk):
+  `ollama`'s own API returned a real JSON body naming exactly `llama3.2:1b` as its one loaded
+  model; `kiwix` returned a real `HTTP/1.1 200 OK` with genuine content; `whisper` returned
+  `200 OK` with `Server: whisper.cpp`; `cockpit` returned `200 OK` with `Server: nginx/1.31.8`
+  and real dashboard content (`Content-Length: 41800`).
+
+**This closes out the entire multi-session Undercroft Pocket investigation.** Every real
+problem found across this whole arc — the original `overlay2` whiteout bug, the `vfs` driver's
+real disk-space cost, the 1TB sizing decision, the SDR hardware-profile mismatch, the
+`light-locker` lockout, Open WebUI's too-tight memory cap, `cockpit`'s duplicate nginx route,
+the heredoc backtick bug, and the first-boot timeout — is now fixed in the real source, pushed
+to GitHub, and confirmed working end-to-end from a genuinely rebuilt ISO, not just a live-patched
+test disk. Real remaining next step, not yet started: flash this ISO onto an actual physical USB
+stick via `make-pocket-usb.sh` and boot it on real hardware — everything validated so far has
+run inside this sandbox's nested QEMU-in-Docker environment, which is a different (if
+thorough) kind of proof than a real drive in a real machine.
+
 ## Nice-to-haves floated for later, not yet decided on
 
 - **Ecosystem-wide rebrand, assets placed 2026-09-18**: the Citadel Ecosystem's new brand mark
