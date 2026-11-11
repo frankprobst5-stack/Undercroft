@@ -216,10 +216,31 @@ cat > config/includes.chroot/usr/local/bin/undercroft-set-wallpaper <<'SCRIPT'
 #!/usr/bin/env bash
 # Applies the Undercroft branded wallpaper on first real Xfce login. Waits
 # for xfce4-desktop to expose its own live property list, then sets
-# last-image/image-style on whatever workspace properties it actually
+# last-image/image-style on whatever per-workspace properties it actually
 # created for this machine's real monitor(s) -- never a guessed monitor
 # name. Runs once per account (marker file below); never re-forces the
 # wallpaper if the operator changes it later.
+#
+# Real bug found live 2026-11-11, on a genuinely rebuilt-and-booted ISO,
+# not a guess: the wallpaper never applied on ANY boot, not intermittently
+# under load as first suspected. Root cause confirmed directly against a
+# real `xfconf-query -c xfce4-desktop -l` dump -- the actual property
+# shape this xfce4-desktop version uses is
+# `/backdrop/screen0/monitorVirtual-1/workspaceN/last-image` (a real
+# monitor-name segment, `monitorVirtual-1`, between `screen0` and
+# `workspaceN`), not the bare `/backdrop/screen0/workspaceN` shape this
+# script's own grep patterns assumed. `grep -q '/workspace0$'` and
+# `grep -E '/workspace[0-9]+$'` both require a property path to literally
+# END at `workspaceN` -- every real property actually continues past that
+# with `/last-image`, `/image-style`, or `/color-style`, so neither grep
+# EVER matched, on any boot, regardless of timing. Fixed by matching the
+# real, observed shape directly (`/workspace[0-9]+/last-image$`) and
+# deriving the sibling `image-style` property by string substitution
+# instead of guessing at a parent "workspace property" that doesn't exist
+# as its own settable key. Verified live before trusting this: manually
+# ran the corrected `xfconf-query` calls against the real property paths
+# from that same dump and confirmed the branded crest actually appears on
+# the desktop, not just that the commands exit cleanly.
 set -euo pipefail
 
 MARKER="$HOME/.config/.undercroft-wallpaper-set"
@@ -229,25 +250,30 @@ IMG="/usr/share/backgrounds/undercroft/undercroft-wallpaper.png"
 [[ -f "$IMG" ]] || exit 0
 
 for _ in $(seq 1 20); do
-    xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -q '/workspace0$' && break
+    xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -qE '/workspace[0-9]+/last-image$' && break
     sleep 1
 done
 
-xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E '/workspace[0-9]+$' | while read -r ws; do
-    if xfconf-query -c xfce4-desktop -p "$ws/last-image" >/dev/null 2>&1; then
-        xfconf-query -c xfce4-desktop -p "$ws/last-image" -s "$IMG"
+SET_ANY=0
+while read -r prop; do
+    xfconf-query -c xfce4-desktop -p "$prop" -s "$IMG"
+    STYLE_PROP="${prop%/last-image}/image-style"
+    if xfconf-query -c xfce4-desktop -p "$STYLE_PROP" >/dev/null 2>&1; then
+        xfconf-query -c xfce4-desktop -p "$STYLE_PROP" -s 5
     else
-        xfconf-query -c xfce4-desktop -p "$ws/last-image" -n -t string -s "$IMG"
+        xfconf-query -c xfce4-desktop -p "$STYLE_PROP" -n -t int -s 5
     fi
-    if xfconf-query -c xfce4-desktop -p "$ws/image-style" >/dev/null 2>&1; then
-        xfconf-query -c xfce4-desktop -p "$ws/image-style" -s 5
-    else
-        xfconf-query -c xfce4-desktop -p "$ws/image-style" -n -t int -s 5
-    fi
-done
+    SET_ANY=1
+done < <(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E '/workspace[0-9]+/last-image$')
 
-mkdir -p "$(dirname "$MARKER")"
-touch "$MARKER"
+# Only mark this done if at least one real property was actually set --
+# matches this same real bug's own lesson: an unconditional marker touch
+# here would have masked this exact failure forever on a persisted drive,
+# the same way the original bug went unnoticed across many earlier boots.
+if [[ "$SET_ANY" -eq 1 ]]; then
+    mkdir -p "$(dirname "$MARKER")"
+    touch "$MARKER"
+fi
 SCRIPT
 chmod +x config/includes.chroot/usr/local/bin/undercroft-set-wallpaper
 
