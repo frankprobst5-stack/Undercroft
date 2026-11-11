@@ -461,25 +461,40 @@ done
 # live secrets (VAULT_API_TOKEN, MEALIE_API_TOKEN among them, confirmed
 # directly in that real file before deciding this). A new random token is
 # generated per boot session instead, scoped to this drive alone.
+# "hardware" deliberately dropped from the profile list below, 2026-11-10:
+# that profile is scanner/scanner-bridge/intercept/intercept-backend
+# (confirmed directly against modules/hardware/compose.fragment.yml, all
+# four under this one profile, not split across several) -- the
+# trunked-radio decoder and the 433MHz ISM-band viewer, both requiring a
+# real RTL-SDR dongle on /dev/bus/usb. Real finding from the 1TB
+# persistence re-test: with the disk-space problem solved, these two were
+# the only remaining failures, both for the same reason -- no real (or
+# virtual/passed-through) USB SDR hardware exists in this test environment,
+# so devices: [/dev/bus/usb] has nothing to bind to. Frank's own call
+# rather than chase a sandbox-only limitation: drop the whole profile from
+# Undercroft Pocket's default set. Still real, working, genuinely useful
+# modules on hardware that actually has an SDR dongle plugged in (a real
+# field/vehicle deployment) -- just not a sensible pocket-drive default
+# when the operating assumption is "plug this into whatever machine is
+# available," which says nothing about what radio hardware happens to be
+# attached. Still startable explicitly with a real dongle present: docker
+# compose --profile hardware up -d.
+#
+# Real bug found and fixed, 2026-11-11: this whole comment originally sat
+# INSIDE the .env heredoc below, which is deliberately unquoted (`<<EOF`,
+# not `<<'EOF'`) so the real ${LIVE_HOME}/${CITADEL_DIR}/${VAULT_TOKEN}
+# substitutions further down actually happen -- but that also means bash
+# evaluates backticks anywhere in the heredoc body, comment or not. The
+# backtick-wrapped code references this comment used for readability
+# (matching this file's own established style elsewhere) got silently
+# executed as real command substitutions at every boot, confirmed live via
+# `undercroft-pocket-first-boot: line 66: hardware: command not found` and
+# five identical sibling errors in the journal, one per backtick-wrapped
+# word. Fixed by moving the whole comment above the heredoc (a real `#`
+# comment here, outside it, where backticks are just characters) instead
+# of inside it.
 VAULT_TOKEN="$(openssl rand -hex 32)"
 cat > "${CITADEL_DIR}/.env" <<EOF
-# `hardware` deliberately dropped, 2026-11-10: that profile is
-# `scanner`/`scanner-bridge`/`intercept`/`intercept-backend` (confirmed
-# directly against modules/hardware/compose.fragment.yml, all four under
-# this one profile, not split across several) -- the trunked-radio decoder
-# and the 433MHz ISM-band viewer, both requiring a real RTL-SDR dongle on
-# `/dev/bus/usb`. Real finding from the 1TB persistence re-test: with the
-# disk-space problem solved, these two were the only remaining failures,
-# both for the same reason -- no real (or virtual/passed-through) USB SDR
-# hardware exists in this test environment, so `devices: [/dev/bus/usb]`
-# has nothing to bind to. Frank's own call rather than chase a sandbox-only
-# limitation: drop the whole profile from Undercroft Pocket's default set.
-# Still real, working, genuinely useful modules on hardware that actually
-# has an SDR dongle plugged in (a real field/vehicle deployment) -- just
-# not a sensible pocket-drive default when the operating assumption is
-# "plug this into whatever machine is available," which says nothing about
-# what radio hardware happens to be attached. Still startable explicitly
-# with a real dongle present: `docker compose --profile hardware up -d`.
 COMPOSE_PROFILES=knowledge,ollama-local,ai,audio,muster
 KIWIX_STORAGE_PATH=${LIVE_HOME}/pocket-data/kiwix
 OLLAMA_PORT=11500
@@ -562,11 +577,22 @@ RemainAfterExit=yes
 # unblocked the hardware/ai/muster profiles' real network pulls (5 more
 # images) and muster-bridge's local build, the real total first-boot time
 # genuinely exceeds 10 minutes -- caught live: the service hit this exact
-# timeout and got SIGTERM'd mid-pull, not a real failure. This is a real,
-# one-time cost (the next boot of the same persisted drive doesn't repeat
-# any of this), so a generous ceiling is the right tradeoff over risking
-# another false timeout on slower real hardware.
-TimeoutStartSec=1800
+# timeout and got SIGTERM'd mid-pull, not a real failure. Raised to 1800s
+# (30min) at the time -- confirmed WRONG the same way one rebuild later,
+# 2026-11-11: a real rebuilt-ISO validation run (fresh, empty persistence
+# disk, nothing cached) hit this exact 1800s ceiling too, SIGTERM'd while
+# still actively downloading image layers -- the real cold-cache pipeline
+# for the current five-module set genuinely runs 70-90+ minutes end to end
+# on this test network, confirmed across multiple real runs this whole
+# investigation, not a one-off. Guessing a second, larger fixed number
+# risks the identical mistake a third time on a slower real connection.
+# Real fix: no timeout at all (TimeoutStartSec=0, systemd's own documented
+# way to disable it) -- this is a genuine one-time cost (the next boot of
+# the same persisted drive never repeats any of this pull/build work, see
+# RemainAfterExit=yes above), so there's no real scenario where letting it
+# run unbounded is the wrong call, only ones where a second guessed ceiling
+# is still too short.
+TimeoutStartSec=0
 
 [Install]
 WantedBy=multi-user.target
