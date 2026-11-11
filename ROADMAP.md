@@ -1791,3 +1791,44 @@ missing logic and no more open design questions:**
   solved, correctly deferred to Phase 3 rather than guessed at now.
 - WSP/1's own replay-resistance gap is still unfixed — dependable time sync is real
   infrastructure toward a future fix, not a fix by itself.
+
+## The branded wallpaper never actually applied — found and fixed, 2026-11-11
+
+Noticed while reviewing fresh screenshots for the README update: every real boot this whole
+investigation ever took, on every persistence disk, showed the stock Debian live wallpaper
+instead of the Undercroft crest — not an intermittent cosmetic miss, a complete, 100%
+failure every time. Initial hypothesis (a stale "already done" marker from some earlier
+boot that hit its own 20-second xfce4-desktop wait and gave up) was real reasoning worth
+checking but turned out **wrong** — `~/.config` on the test disk had no marker file at all,
+meaning the wallpaper script never even reached its own last line.
+
+**Real root cause, confirmed directly against a live `xfconf-query -c xfce4-desktop -l`
+dump, not guessed**: this xfce4-desktop version's real per-workspace backdrop properties are
+shaped `/backdrop/screen0/monitorVirtual-1/workspaceN/last-image` — a real monitor-name
+segment (`monitorVirtual-1`) sits between `screen0` and `workspaceN`. The wallpaper script's
+own grep patterns (`grep -q '/workspace0$'` for the wait-loop, `grep -E '/workspace[0-9]+$'`
+for the apply-loop) both require a property path to literally *end* at `workspaceN` — every
+real property actually continues past that point (`/last-image`, `/image-style`,
+`/color-style`), so neither grep **ever** matched, on any boot, independent of timing or
+system load. Not a race condition at all, despite the very reasonable first guess.
+
+**Fixed and verified live, not just patched and hoped**: rewrote both patterns to match the
+real observed shape (`/workspace[0-9]+/last-image$`), deriving the sibling `image-style`
+property by string substitution instead of assuming a parent "workspace" property exists as
+its own settable key (it doesn't). Validated directly, before trusting the fix: manually ran
+the corrected `xfconf-query -p ... -s ...` calls against the real property paths from that
+same dump, switched to the live desktop, and confirmed the actual crest now renders — not
+just that the commands exited without error.
+
+**Two further, related bugs fixed in the same pass, found while already in this code**: the
+apply-loop ran on the wrong side of a pipe (`xfconf-query ... | while read`), meaning it
+executed in a subshell where a success flag could never actually reach the parent script;
+and the completion marker was touched **unconditionally** regardless of whether the loop
+body ever ran at all — the exact same class of silent-failure bug as the (wrong, but
+structurally sound) first hypothesis, now actually closed: the marker is only written when
+at least one property was genuinely set.
+
+Committed and pushed; **not yet verified in a rebuilt ISO** — found and fixed via direct
+live-patching on the already-built test ISO's own persistence disk, same fast-iteration
+discipline this whole project has used throughout. A future rebuild is the real remaining
+step to confirm this holds from a completely cold boot, not just when manually re-run.
